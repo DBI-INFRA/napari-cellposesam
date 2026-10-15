@@ -150,7 +150,7 @@ def widget_wrapper():
         box = QMessageBox(
             QMessageBox.Icon.Question, 'Install DINOv3?',
             f'The {model_type} model needs the DINOv3 package, which is not on PyPI and '
-            f'so is not installed with cellpose-napari.\n\nInstall it now from\n{DINOV3_URL}\n\n'
+            f'so is not installed with napari-cellposesam.\n\nInstall it now from\n{DINOV3_URL}\n\n'
             'napari must be restarted afterwards.',
             parent=widget.native)
         install = box.addButton('Install', QMessageBox.ButtonRole.AcceptRole)

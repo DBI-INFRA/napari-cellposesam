@@ -5,9 +5,9 @@ from typing import Callable
 import napari
 import numpy as np
 import pytest
-from cellpose_napari._dock_widget import _V4
+from napari_cellposesam._dock_widget import _V4
 
-PLUGIN_NAME = "cellpose-napari"
+PLUGIN_NAME = "napari-cellposesam"
 WIDGET_NAME = "cellpose"
 
 @pytest.fixture(autouse=True)

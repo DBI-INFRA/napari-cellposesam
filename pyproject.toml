@@ -3,11 +3,14 @@ requires = ["setuptools>=64", "setuptools_scm>=7"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cellpose-napari"
-description = "a generalist algorithm for anatomical segmentation"
+name = "napari-cellposesam"
+description = "napari plugin for cellpose and Cellpose-SAM segmentation"
 readme = "README.md"
 license = { text = "BSD-3-Clause" }
-authors = [{ name = "Carsen Stringer", email = "stringerc@janelia.hhmi.org" }]
+authors = [
+    { name = "Carsen Stringer", email = "stringerc@janelia.hhmi.org" },
+    { name = "Jesko Wagner", email = "35219306+jeskowagner@users.noreply.github.com" },
+]
 requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python",
@@ -28,7 +31,9 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
-Homepage = "https://github.com/Mouseland/cellpose-napari"
+Homepage = "https://github.com/jeskowagner/napari-cellposesam"
+"Bug Tracker" = "https://github.com/jeskowagner/napari-cellposesam/issues"
+"Upstream" = "https://github.com/MouseLand/cellpose-napari"
 
 [project.optional-dependencies]
 docs = [
@@ -48,16 +53,16 @@ testing = [
 ]
 
 [project.entry-points."napari.manifest"]
-cellpose-napari = "cellpose_napari:napari.yaml"
+napari-cellposesam = "napari_cellposesam:napari.yaml"
 
 [tool.setuptools_scm]
-version_file = "cellpose_napari/_version.py"
+version_file = "napari_cellposesam/_version.py"
 
 [tool.setuptools.packages.find]
 exclude = ["tests", "tests.*"]
 
 [tool.setuptools.package-data]
-cellpose_napari = ["napari.yaml"]
+napari_cellposesam = ["napari.yaml"]
 
 [tool.tox]
 legacy_tox_ini = """
@@ -94,5 +99,5 @@ setenv =
     TORCHINDUCTOR_CACHE_DIR = {envtmpdir}/torchinductor
 extras =
     testing
-commands = pytest -v --color=yes --cov=cellpose_napari --cov-report=xml
+commands = pytest -v --color=yes --cov=napari_cellposesam --cov-report=xml
 """
