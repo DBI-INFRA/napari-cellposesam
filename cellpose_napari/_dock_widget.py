@@ -70,8 +70,16 @@ def widget_wrapper():
         from cellpose import models
 
         if _V4:
+            import inspect
+            from cellpose.core import assign_device
+
             pretrained_model = custom_model if model_type == 'custom' else model_type
-            CP = models.CellposeModel(gpu=True, pretrained_model=pretrained_model)
+            device, gpu = assign_device(gpu=True)
+            model_kwargs = dict(gpu=gpu, device=device, pretrained_model=pretrained_model)
+            # bf16 is ~8x slower than fp32 on CPUs without native bf16 support
+            if 'use_bfloat16' in inspect.signature(models.CellposeModel).parameters:
+                model_kwargs['use_bfloat16'] = device.type != 'cpu'
+            CP = models.CellposeModel(**model_kwargs)
         elif model_type == 'custom':
             CP = models.CellposeModel(pretrained_model=custom_model, gpu=True)
         else:
