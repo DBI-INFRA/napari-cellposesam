@@ -1,35 +1,28 @@
 Running plugin
 -------------------------------
 
-You can drag and drop a variety of images into napari. 
-You can also open a folder of images to process together 
-(or sequentially). See napari `image`_ documentation for more 
-advanced image loading.
+You can drag and drop a variety of images into napari. See the napari
+`image`_ documentation for more advanced image loading.
 
 2D images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Here is an example of the plugin running on the 2D sample image.
+Select an image layer, pick a model and click ``run segmentation``. The
+plugin adds masks, outlines, cell probability and flow layers. To try it out,
+open a sample image from File > Open Sample > napari-cellposesam.
 
-.. image:: _static/napari_main_demo_fast_small.gif
+.. image:: _static/gui.png
     :width: 1200px
     :align: center
-    :alt: 3D_demo
+    :alt: napari-cellposesam segmenting the 2D sample image
 
 Batch processing in 2D
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Cellpose will process all images in an opened folder with the same settings 
-and return masks for each image with the name ``folder_name_fileid``. You can 
-export all the images in the napari File menu.
-
-Here is an example of the plugin running on a folder of 2D data.
-
-.. image:: _static/napari_batch_demo_fast_small.gif
-    :width: 1200px
-    :align: center
-    :alt: time_series_demo
-
+To process several same-sized 2D images together, open them with
+File > Open Files as Stack, which loads them into one layer. Uncheck ``process stack as 3D`` and cellpose segments each image in 2D with
+the same settings, adding a separate set of result layers per image. You can
+export the results from the napari File menu.
 
 3D segmentation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -51,24 +44,11 @@ cellpose will create masks in 2D on each XY slice and then stitch them across
 slices if the IoU between the mask on the current slice and the next slice is 
 greater than or equal to the ``stitch threshold slices``. 
 
-Here is an example of the plugin running on the 3D sample image.
-
-.. image:: _static/napari_3d_demo_fast_small.gif
-    :width: 1200px
-    :align: center
-    :alt: 3D_demo
+A 3D sample is available under File > Open Sample > napari-cellposesam.
 
 Time segmentation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Stitching can also be applied in time by setting ``stitch threshold slices``>0.
-
-Here is an example of the plugin running on cell tracking challenge data.
-
-.. image:: _static/napari_time_demo_fast_small.gif
-    :width: 1200px
-    :align: center
-    :alt: time_series_demo
-
 
 .. _image: https://napari.org/stable/howtos/layers/image.html

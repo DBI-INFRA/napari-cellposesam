@@ -7,7 +7,7 @@ including Cellpose-SAM (cellpose v4). It also works with cellpose v3.
 It is a fork of `cellpose-napari`_, the original plugin by Carsen Stringer.
 The source code is on `GitHub`_.
 
-.. image:: _static/gui.PNG
+.. image:: _static/gui.png
     :width: 1200px
     :align: center
     :alt: plugin

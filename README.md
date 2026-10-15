@@ -35,7 +35,7 @@ If you use this plugin, please cite the [cellpose paper](https://www.nature.com/
 }
 ```
 
-![napari-cellposesam plugin](https://cellpose-napari.readthedocs.io/en/latest/_images/napari_main_demo_fast_small.gif?raw=true "napari-cellposesam")
+![napari-cellposesam segmenting the 2D sample image](https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/docs/_static/gui.png)
 
 ## Installation
 
