@@ -26,7 +26,7 @@ try:
     from importlib.metadata import version as _version
     release = _version('napari-cellposesam')
 except Exception:
-    release = 'unknown'
+    release = ''
 
 
 # -- General configuration ---------------------------------------------------
@@ -74,6 +74,7 @@ html_favicon = '_static/favicon.ico'
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
+html_title = f'{project} documentation'
 html_theme_path = ["_themes", ]
 html_theme_options = {
     'logo_only': False,
