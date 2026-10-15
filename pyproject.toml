@@ -59,7 +59,7 @@ napari-cellposesam = "napari_cellposesam:napari.yaml"
 version_file = "napari_cellposesam/_version.py"
 
 [tool.setuptools.packages.find]
-exclude = ["tests", "tests.*"]
+include = ["napari_cellposesam*"]
 
 [tool.setuptools.package-data]
 napari_cellposesam = ["napari.yaml"]
