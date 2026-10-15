@@ -34,10 +34,15 @@ Here is an example of the plugin running on a folder of 2D data.
 3D segmentation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Cellpose can segment 3D and 4D stacks. If there is a channel 
-axis, specify it by labelling it with 'c'.
+Cellpose can segment 3D and 4D stacks. ``process stack as 3D`` is checked
+automatically when you select a 3D or 4D image; uncheck it to segment each
+slice in 2D instead.
 
-To run 3D processing, check ``process stack as 3D``.
+With cellpose v4, the widget shows ``z axis`` and ``channel axis`` selectors
+for 3D and 4D images. If the napari layer has axis labels ``z`` and ``c``,
+they are used as defaults. For a 3D image, set ``channel axis`` to
+``none (ZYX)`` if all three axes are spatial. With cellpose v3, label the
+channel axis of a 4D image with ``c`` instead.
 
 If the 3D segmentation is not working well and there is inhomogeneity in Z, try stitching 
 masks using the ``stitch threshold slices`` option
@@ -66,5 +71,4 @@ Here is an example of the plugin running on cell tracking challenge data.
     :alt: time_series_demo
 
 
-.. _image: https://napari.org/tutorials/fundamentals/image.html
-.. _stitch_threshold: http://cellpose.readthedocs.io/settings.html#d-settings
+.. _image: https://napari.org/stable/howtos/layers/image.html

@@ -1,108 +1,139 @@
 Settings
 --------------------------
 
-There are more settings for cellpose that can be accessed using the CLI or 
+There are more settings for cellpose that can be accessed using the CLI or
 through a jupyter notebook. See details at cellpose `docs`_.
 
-Listed are settings available through napari widget. Please submit an 
-issue if you would like a new setting available in the widget.
+Listed are settings available through the napari widget. Some settings only
+exist with cellpose v3 or v4; the widget shows the ones that apply to the
+installed version. Please submit an `issue`_ if you would like a new setting
+available in the widget.
 
-Channels
+Model type
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Cytoplasm model (`'cyto'`)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+With cellpose v4 the built-in models are:
 
-The cytoplasm model in cellpose is trained on two-channel images, where 
-the first channel is the channel to segment, and the second channel is 
+- ``cpsam_v2`` (default) and ``cpsam``: Cellpose-SAM models
+- ``cpdino`` and ``cpdino-vitb``: models with a DINOv3 backbone, which need
+  DINOv3 installed (see :doc:`installation`)
+
+With cellpose v3 the built-in models are ``cyto3`` (default), ``cyto2``,
+``cyto``, ``nuclei`` and the cp3 dataset-specific models.
+
+Model weights are downloaded the first time a model is used. The Cellpose-SAM
+weights are about 1.2 GB.
+
+Select ``custom`` and set ``custom model path`` to use your own trained model.
+
+Channels (cellpose v3)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Cellpose-SAM uses all channels of the image and has no channel settings.
+With cellpose v3 the widget shows ``channel to segment`` and
+``optional nuclear channel``.
+
+Cytoplasm models (e.g. ``cyto3``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The cytoplasm models are trained on two-channel images, where
+the first channel is the channel to segment, and the second channel is
 an optional nuclear channel. Here are the options for each:
-1. 0=grayscale, 1=red, 2=green, 3=blue, 4 ...
-2. 0=None (will set to zero), 1=red, 2=green, 3=blue, 4 ...
 
-Nucleus model (`'nuclei'`)
+1. average all channels, 0=red, 1=green, 2=blue, 3 ...
+2. none, 0=red, 1=green, 2=blue, 3 ...
+
+Nucleus model (``nuclei``)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The nuclear model in cellpose is trained on two-channel images, where 
-the first channel is the channel to segment, and the second channel is 
-always set to an array of zeros. Therefore set the first channel as 
-0=grayscale, 1=red, 2=green, 3=blue; and set the second channel to 0=None
+The nuclear model is trained on two-channel images, where
+the first channel is the channel to segment, and the second channel is
+always set to an array of zeros. Therefore set the first channel to the
+nuclear channel and set the second channel to none.
 
-Diameter 
+Diameter
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The cellpose models have been trained on images which were rescaled 
-to all have the same diameter (30 pixels in the case of the `cyto` 
-model and 17 pixels in the case of the `nuclei` model). Therefore, 
-cellpose needs a user-defined cell diameter (in pixels) as input, or to estimate 
-the object size of an image-by-image basis.
+The image is rescaled by 30 / ``diameter`` before it is passed to the network,
+so that cells are about 30 pixels across.
 
-The automated estimation of the diameter is a two-step process using the `style` vector 
-from the network, a 64-dimensional summary of the input image. We trained a 
-linear regression model to predict the size of objects from these style vectors 
-on the training data. On a new image the procedure is as follows.
+Cellpose-SAM is trained to work over a wide range of cell sizes, so the
+default of 30 often works without changes. If cells are over-split, increase
+the diameter; if they are over-merged, decrease it.
 
-1. Run the image through the cellpose network and obtain the style vector. Predict the size using the linear regression model from the style vector.
+The cellpose v3 models are trained on images rescaled to a fixed diameter
+(30 pixels for ``cyto`` models, 17 pixels for ``nuclei``) and are more
+sensitive to this setting. With cellpose v3, click ``compute diameter from image``
+to estimate the diameter automatically. The estimation is a two-step process
+using the `style` vector from the network, a 64-dimensional summary of the
+input image:
+
+1. Run the image through the cellpose network and obtain the style vector. Predict the size using a linear regression model from the style vector.
 2. Resize the image based on the predicted size and run cellpose again, and produce masks. Take the final estimated size as the median diameter of the predicted masks.
 
-Click ``compute diameter from image`` to start diameter estimation.
-However, if this estimate is incorrect please set the diameter by hand.
+If this estimate is incorrect, set the diameter by hand.
 
-You can also get an estimate from clicking on the image: create a napari 'Shapes' layer 
-and draw circles or squares. If you click 
-``compute diameter from shape layer``, the plugin will set the diameter to 
-the average diameter of the drawn shapes.
+With either version, you can also get an estimate from the image: create a
+napari Shapes layer and draw circles or squares around cells, select it as
+``shape layer`` and click ``compute diameter from shape layer``. The plugin
+sets the diameter to the average diameter of the drawn shapes.
 
-Changing the diameter will change the results that the algorithm 
-outputs. When the diameter is set smaller than the true size 
-then cellpose may over-split cells. Similarly, if the diameter 
-is set too big then cellpose may over-merge cells.
-
-Resample
+Resample dynamics
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The cellpose network is run on your rescaled image -- where the rescaling factor is determined 
-by the diameter you input (or determined automatically as above). For instance, if you have 
-an image with 60 pixel diameter cells, the rescaling factor is 30./60. = 0.5. After determining 
-the flows (dX, dY, cellprob), the model runs the dynamics. The dynamics can be run at the rescaled 
-size (``resample=False``), or the dynamics can be run on the resampled, interpolated flows 
-at the true image size (``resample=True``). ``resample=True`` will create smoother masks when the 
-cells are large but will be slower in case; ``resample=False`` will find more masks when the cells 
-are small but will be slower in this case. 
+The cellpose network is run on your rescaled image, where the rescaling factor is determined
+by the diameter. For instance, if you have an image with 60 pixel diameter cells,
+the rescaling factor is 30./60. = 0.5. After determining the flows (dX, dY, cellprob),
+the model runs the dynamics. The dynamics can be run at the rescaled size
+(``resample dynamics`` unchecked), or on the resampled, interpolated flows at the
+true image size (``resample dynamics`` checked). Resampling creates smoother masks
+when the cells are large but is slower.
 
-Model match threshold
+Flow threshold
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Note there is nothing keeping the neural network from predicting 
-horizontal and vertical flows that do not correspond to any real 
-shapes at all. In practice, most predicted flows are consistent with 
-real shapes, because the network was only trained on image flows 
-that are consistent with real shapes, but sometimes when the network 
-is uncertain it may output inconsistent flows. To check that the 
-recovered shapes after the flow dynamics step are consistent with 
-real masks, we recompute the flow gradients for these putative 
+Note there is nothing keeping the neural network from predicting
+horizontal and vertical flows that do not correspond to any real
+shapes at all. In practice, most predicted flows are consistent with
+real shapes, because the network was only trained on image flows
+that are consistent with real shapes, but sometimes when the network
+is uncertain it may output inconsistent flows. To check that the
+recovered shapes after the flow dynamics step are consistent with
+real masks, we recompute the flow gradients for these putative
 predicted masks, and compute the mean squared error between them and
-the flows predicted by the network. 
+the flows predicted by the network.
 
-The ``model match threshold`` parameter is inverse of the maximum 
-allowed error of the flows for each mask. Decrease this threshold 
-if cellpose is not returning as many masks as you'd expect. 
-Similarly, increase this threshold if cellpose is returning too many 
-ill-shaped masks.
+``flow_threshold`` is the maximum allowed error of the flows for each mask
+(default 0.4). Increase it if cellpose is not returning as many masks as
+you'd expect. Decrease it if cellpose is returning too many ill-shaped masks.
+Set it to 0 to turn the check off.
 
 Cell probability threshold
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The network predicts 3 outputs: flows in X, flows in Y, and cell "probability". 
-The predictions the network makes of the probability are the inputs to a sigmoid 
-centered at zero (1 / (1 + e^-x)), 
-so they vary from around -6 to +6. The pixels greater than the 
-``cellprob_threshold`` are used to run dynamics and determine masks. The default 
-is ``cellprob_threshold=0.0``. Decrease this threshold if cellpose is not returning 
-as many masks as you'd expect. Similarly, increase this threshold if cellpose is 
-returning too masks particularly from dim areas.
+The network predicts 3 outputs: flows in X, flows in Y, and cell "probability".
+The predictions the network makes of the probability are the inputs to a sigmoid
+centered at zero (1 / (1 + e^-x)),
+so they vary from around -6 to +6. The pixels greater than the
+``cellprob_threshold`` are used to run dynamics and determine masks. The default
+is ``cellprob_threshold=0.0``. Decrease this threshold if cellpose is not returning
+as many masks as you'd expect. Similarly, increase this threshold if cellpose is
+returning too many masks, particularly from dim areas.
 
-.. _docs: https://cellpose.readthedocs.io/en/latest/command.html#command-line
+After a segmentation, click ``recompute last masks with new cellprob`` to
+recompute the masks with the current thresholds without running the network
+again.
 
+Min size
+~~~~~~~~~~~~~~~~~~~~~~~~
 
+Masks with fewer pixels than ``min size (px)`` are removed (default 15).
 
+3D settings
+~~~~~~~~~~~~~~~~~~~~~~~~
 
+See :doc:`running` for ``process stack as 3D``, ``stitch threshold slices``
+and the axis selectors.
+
+.. _docs: https://cellpose.readthedocs.io/en/latest/settings.html
+.. _issue: https://github.com/jeskowagner/napari-cellposesam/issues

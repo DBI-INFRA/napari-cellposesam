@@ -1,24 +1,24 @@
-.. cellpose-napari documentation master file, created by
-   sphinx-quickstart on Thu Oct  1 00:43:18 2015.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-cellpose-napari
+napari-cellposesam
 ===============================================================
 
-cellpose-napari is a plugin to enable usage of cellpose in napari.
+napari-cellposesam is a napari plugin for cell segmentation with cellpose,
+including Cellpose-SAM (cellpose v4). It also works with cellpose v3.
+
+It is a fork of `cellpose-napari`_, the original plugin by Carsen Stringer.
+The source code is on `GitHub`_.
 
 .. image:: _static/gui.PNG
     :width: 1200px
     :align: center
     :alt: plugin
 
-Please see cellpose `documentation`_ for more information on the 
+Please see the cellpose `documentation`_ for more information on the
 algorithm and the settings.
 
-If you use this plugin please cite 
+If you use this plugin please cite the cellpose paper, and the Cellpose-SAM
+paper if you use the ``cpsam`` models (see the cellpose `repo`_ for the reference):
 ::
-    
+
       @article{stringer2021cellpose,
       title={Cellpose: a generalist algorithm for cellular segmentation},
       author={Stringer, Carsen and Wang, Tim and Michaelos, Michalis and Pachitariu, Marius},
@@ -31,13 +31,16 @@ If you use this plugin please cite
       }
 
 
-.. _documentation: http://www.readthedocs.cellpose.io
+.. _documentation: https://cellpose.readthedocs.io
+.. _repo: https://github.com/MouseLand/cellpose
+.. _cellpose-napari: https://github.com/MouseLand/cellpose-napari
+.. _GitHub: https://github.com/jeskowagner/napari-cellposesam
 
 
 .. toctree::
    :maxdepth: 3
    :caption: Basics:
-   
+
    installation
    running
    settings

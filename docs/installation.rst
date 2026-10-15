@@ -1,59 +1,74 @@
 Installation
 ------------------------------
 
-For full napari install instructions, look at their 
-`install`_ instructions. 
+napari-cellposesam requires Python 3.11 or newer. We recommend installing it
+into a fresh environment, e.g. with conda:
 
-For full cellpose install instructions, look up the main 
-cellpose github `readme`_. 
+::
 
+   conda create -n napari-cellposesam python=3.12
+   conda activate napari-cellposesam
+   pip install "napari[all]" napari-cellposesam
+
+You can also install the plugin from inside napari with the plugin manager
+(Plugins > Install/Uninstall Plugins).
+
+To install the latest development version from GitHub:
+
+::
+
+   pip install git+https://github.com/jeskowagner/napari-cellposesam
+
+For full napari install instructions, see the napari `install`_ docs.
+For full cellpose install instructions, see the cellpose `installation docs`_.
+
+GPU
+~~~~~~~~~~~~~~~~~~~~~~~
+
+cellpose runs on CPU, NVIDIA GPUs (CUDA) and Apple silicon (MPS). The plugin
+uses a GPU automatically if torch can see one. For CUDA, install a CUDA build
+of torch following the `PyTorch`_ instructions.
+
+On CPU the plugin runs Cellpose-SAM in fp32, which is much faster than bf16
+on CPUs without native bf16 support. On GPU it uses bf16.
+
+CPDINO models
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The CPDINO models need `DINOv3`_, which is not on PyPI and so is not installed
+automatically. The plugin offers to install it when you run segmentation with
+a CPDINO model, or you can install it yourself:
+
+::
+
+   pip install git+https://github.com/facebookresearch/dinov3
+
+If DINOv3 was installed while napari was running, restart napari before
+using a CPDINO model. Without DINOv3, cellpose logs a
+``Could not import CPDINO`` warning on startup, which is harmless if you
+don't use those models.
 
 Common issues
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-If you receive the error: ``Illegal instruction (core dumped)``, then
-likely mxnet does not recognize your MKL version. Please uninstall and
-reinstall mxnet without mkl:
+If you have errors related to OpenMP and libiomp5, then try
 
 ::
 
-   pip uninstall mxnet-mkl
-   pip uninstall mxnet
-   pip install mxnet==1.4.0
-
-If you receive the error: ``No module named PyQt5.sip``, then try
-uninstalling and reinstalling pyqt5
-
-::
-
-   pip uninstall pyqt5 pyqt5-tools
-   pip install pyqt5 pyqt5-tools pyqt5.sip
-
-If you have errors related to OpenMP and libiomp5, then try 
-
-::
    conda install nomkl
 
-If you receive an error associated with **matplotlib**, try upgrading
-it:
+If you receive the error: ``ImportError: _arpack DLL load failed``, then try
+uninstalling and reinstalling scipy:
 
-::
-
-   pip install matplotlib --upgrade
-
-If you receive the error: ``ImportError: _arpack DLL load failed``, then try uninstalling and reinstalling scipy
 ::
 
    pip uninstall scipy
    pip install scipy
 
-If you are having issues with the graphical interface, make sure you are on **python 3.11 or newer**, which is what napari requires.
+If installation fails or the plugin doesn't load, please open an `issue`_.
 
-If you are on Yosemite Mac OS or earlier, PyQt doesn't work and you won't be able
-to use the graphical interface for cellpose. More recent versions of Mac
-OS are fine. The software has been heavily tested on Windows 10 and
-Ubuntu 18.04, and less well tested on Mac OS. Please post an issue if
-you have installation problems.
-
-.. _readme: http://github.com/mouseland/cellpose
-.. _install: https://napari.org/tutorials/fundamentals/installation.html
+.. _install: https://napari.org/stable/tutorials/fundamentals/installation.html
+.. _installation docs: https://cellpose.readthedocs.io/en/latest/installation.html
+.. _PyTorch: https://pytorch.org/get-started/locally/
+.. _DINOv3: https://github.com/facebookresearch/dinov3
+.. _issue: https://github.com/jeskowagner/napari-cellposesam/issues

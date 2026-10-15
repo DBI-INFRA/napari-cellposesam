@@ -17,12 +17,16 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'cellpose-napari'
-copyright = '2021, Carsen Stringer & Marius Pachitariu'
-author = 'Carsen Stringer & Marius Pachitariu'
+project = 'napari-cellposesam'
+copyright = '2021, Carsen Stringer & Marius Pachitariu; 2026, Jesko Wagner'
+author = 'Carsen Stringer, Marius Pachitariu, Jesko Wagner'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1'
+try:
+    from importlib.metadata import version as _version
+    release = _version('napari-cellposesam')
+except Exception:
+    release = 'unknown'
 
 
 # -- General configuration ---------------------------------------------------
@@ -46,7 +50,7 @@ extensions = [
 #            'autoapi.extension',
 #            'sphinx.ext.napoleon']
 
-autoapi_dirs = ['../cellpose_napari']
+autoapi_dirs = ['../napari_cellposesam']
 
 source_suffix='.rst'
 
@@ -72,10 +76,8 @@ html_favicon = '_static/favicon.ico'
 html_theme = 'sphinx_rtd_theme'
 html_theme_path = ["_themes", ]
 html_theme_options = {
-    'canonical_url': '',
-    'analytics_id': 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
     'logo_only': False,
-    'display_version': True,
+    'version_selector': True,
     'prev_next_buttons_location': 'top',
     'style_external_links': False,
     'style_nav_header_background': 'black',
