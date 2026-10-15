@@ -52,12 +52,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --upgrade setuptools tox tox-gh-actions
 
-      - name: Show CPU info
-        if: runner.os == 'Linux'
-        run: |
-          lscpu | grep -E "Model name|^CPU\(s\)"
-          grep -oE "avx512_bf16|amx_bf16|avx512f" /proc/cpuinfo | sort -u || echo "no bf16/avx512 flags"
-
       # model weights (~1.2 GB) and sample data are fetched once, with retries, and
       # cached, so tests don't download them mid-run from flaky/slow servers
       - name: Restore cellpose models and sample data
