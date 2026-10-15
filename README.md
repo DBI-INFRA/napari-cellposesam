@@ -13,8 +13,7 @@ This is a fork of [MouseLand/cellpose-napari](https://github.com/MouseLand/cellp
 
 - support for cellpose v4 and the Cellpose-SAM (`cpsam`) models, while still working with cellpose v3
 - z/channel axis selection for 3D and 4D images
-- fp32 inference on CPU, which is much faster than bf16 on CPUs without native bf16 support
-- an npe2 manifest and `pyproject.toml` packaging
+- compatibility with new napari versions
 
 The cellpose code was written by Carsen Stringer and Marius Pachitariu. To learn about Cellpose, read the [**paper**](https://t.co/kBMXmPp3Yn?amp=1) or watch this [**talk**](https://t.co/JChCsTD0SK?amp=1).
 
