@@ -32,8 +32,8 @@ dynamic = ["version"]
 
 [project.urls]
 Homepage = "https://github.com/jeskowagner/napari-cellposesam"
+"Source Code" = "https://github.com/jeskowagner/napari-cellposesam"
 "Bug Tracker" = "https://github.com/jeskowagner/napari-cellposesam/issues"
-"Upstream" = "https://github.com/MouseLand/cellpose-napari"
 
 [project.optional-dependencies]
 docs = [
