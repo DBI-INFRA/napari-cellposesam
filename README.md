@@ -61,6 +61,22 @@ pip install git+https://github.com/jeskowagner/napari-cellposesam
 
 If you have issues installing cellpose, see the [cellpose installation docs](https://cellpose.readthedocs.io/en/latest/installation.html).
 
+### Cellpose3 models
+
+The plugin uses whichever cellpose version is installed. By default that is cellpose v4, which provides the Cellpose-SAM and CPDINO models. To use the Cellpose3 models (`cyto3`, `nuclei`, etc.), install cellpose v3 instead, in a separate environment:
+
+```
+conda create -n napari-cellpose3 python=3.12
+conda activate napari-cellpose3
+pip install "napari[all]" napari-cellposesam "cellpose<4"
+```
+
+An environment can only hold one cellpose version, so you cannot switch between v3 and v4 models from within the plugin.
+
+Don't install `cellpose-napari` next to this plugin. It lists the Cellpose3
+models, but with cellpose v4 installed it ignores the selected model and runs
+Cellpose-SAM, thus breaking it.
+
 ### GPU
 
 cellpose runs on CPU, NVIDIA GPUs (CUDA) and Apple silicon (MPS). For CUDA, install a CUDA build of torch following the [PyTorch instructions](https://pytorch.org/get-started/locally/) before or after installing the plugin. The plugin uses the GPU automatically if torch can see one.
@@ -80,6 +96,8 @@ Without it, cellpose logs a `Could not import CPDINO` warning on startup. This i
 ```
 pip install --upgrade napari-cellposesam cellpose
 ```
+
+In a cellpose v3 environment, use `"cellpose<4"` instead of `cellpose`, or the upgrade moves you to v4.
 
 ## Usage
 

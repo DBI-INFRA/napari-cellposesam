@@ -22,6 +22,25 @@ To install the latest development version from GitHub:
 For full napari install instructions, see the napari `install`_ docs.
 For full cellpose install instructions, see the cellpose `installation docs`_.
 
+Cellpose3 models
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The plugin uses whichever cellpose version is installed. By default that is
+cellpose v4, which provides the Cellpose-SAM and CPDINO models. To use the
+Cellpose3 models (``cyto3``, ``nuclei``, etc.), install cellpose v3 instead,
+in a separate environment:
+
+::
+
+   pip install "napari[all]" napari-cellposesam "cellpose<4"
+
+An environment can only hold one cellpose version, so you cannot switch
+between v3 and v4 models from within the plugin.
+
+Don't install ``cellpose-napari`` next to this plugin. It lists the Cellpose3
+models, but with cellpose v4 installed it ignores the selected model and runs
+Cellpose-SAM, thus breaking it.
+
 GPU
 ~~~~~~~~~~~~~~~~~~~~~~~
 
