@@ -84,7 +84,21 @@ Cellpose-SAM, thus breaking it.
 
 ### GPU
 
-cellpose runs on CPU, NVIDIA GPUs (CUDA) and Apple silicon (MPS). For CUDA, install a CUDA build of torch following the [PyTorch instructions](https://pytorch.org/get-started/locally/) before or after installing the plugin. The plugin uses the GPU automatically if torch can see one.
+cellpose runs on CPU, NVIDIA GPUs (CUDA) and Apple silicon (MPS). The plugin uses a GPU automatically if torch can see one, for both the cellpose 4 and the Cellpose3 models.
+
+- **Apple silicon:** nothing to do, the torch from PyPI supports MPS.
+- **NVIDIA on Linux:** the torch from PyPI is a CUDA build, so it usually works as installed.
+- **NVIDIA on Windows:** the torch from PyPI is CPU-only. Reinstall torch and torchvision together from the PyTorch index, with the CUDA version the [PyTorch selector](https://pytorch.org/get-started/locally/) gives for your driver, e.g.:
+
+  ```
+  pip install --force-reinstall --no-deps torch torchvision --index-url https://download.pytorch.org/whl/cu126
+  ```
+
+Check that torch sees the GPU:
+
+```
+python -c "import torch; print('cuda', torch.cuda.is_available(), 'mps', torch.backends.mps.is_available())"
+```
 
 ### Optional: CPDINO models
 
@@ -101,6 +115,8 @@ Without it, cellpose logs a `Could not import CPDINO` warning on startup. This i
 ```
 pip install --upgrade napari-cellposesam cellpose
 ```
+
+If you installed a CUDA build of torch, upgrade torch the same way you installed it, or pip may replace it with the CPU-only build.
 
 ## Usage
 

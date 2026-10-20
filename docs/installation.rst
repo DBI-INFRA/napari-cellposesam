@@ -64,11 +64,32 @@ GPU
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 cellpose runs on CPU, NVIDIA GPUs (CUDA) and Apple silicon (MPS). The plugin
-uses a GPU automatically if torch can see one. For CUDA, install a CUDA build
-of torch following the `PyTorch`_ instructions.
+uses a GPU automatically if torch can see one, for both the cellpose 4 and
+the Cellpose3 models.
 
-On CPU the plugin runs Cellpose-SAM in fp32, which is much faster than bf16
-on CPUs without native bf16 support. On GPU it uses bf16.
+- Apple silicon: nothing to do, the torch from PyPI supports MPS.
+- NVIDIA on Linux: the torch from PyPI is a CUDA build, so it usually works
+  as installed.
+- NVIDIA on Windows: the torch from PyPI is CPU-only. Reinstall torch and
+  torchvision together from the PyTorch index, with the CUDA version the
+  `PyTorch`_ selector gives for your driver, e.g.:
+
+::
+
+   pip install --force-reinstall --no-deps torch torchvision --index-url https://download.pytorch.org/whl/cu126
+
+Check that torch sees the GPU:
+
+::
+
+   python -c "import torch; print('cuda', torch.cuda.is_available(), 'mps', torch.backends.mps.is_available())"
+
+When upgrading, upgrade torch the same way you installed it, or pip may
+replace a CUDA build with the CPU-only one.
+
+On CPU the plugin runs the cellpose 4 models in fp32, which is much faster
+than bf16 on CPUs without native bf16 support. On GPU it uses bf16. The
+Cellpose3 models always run in fp32.
 
 CPDINO models
 ~~~~~~~~~~~~~~~~~~~~~~~
