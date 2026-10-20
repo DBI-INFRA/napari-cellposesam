@@ -5,14 +5,28 @@ Each segmentation picks its cellpose release from the selected model (see _backe
 """
 from typing import Any
 
+import functools
 import numpy as np
 import logging
+import threading
 
 from . import _backends
 
 logger = logging.getLogger(__name__)
 
 cp_strings = ['_cp_masks_', '_cp_outlines_', '_cp_flows_', '_cp_cellprob_']
+
+# torch's MPS backend crashes (double free) when two threads run kernels at once, so
+# workers that run cellpose take turns, also across widgets in the same napari
+_cellpose_lock = threading.Lock()
+
+
+def _one_at_a_time(func):
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        with _cellpose_lock:
+            return func(*args, **kwargs)
+    return wrapped
 
 
 DINOV3_URL = 'git+https://github.com/facebookresearch/dinov3'
@@ -58,6 +72,7 @@ def widget_wrapper():
             return _deco
 
     @thread_worker
+    @_one_at_a_time
     @no_grad()
     def run_cellpose(major, image, diameter, resample, cellprob_threshold, flow_threshold,
                      min_size, do_3D, stitch_threshold,
@@ -124,6 +139,7 @@ def widget_wrapper():
         return cp, masks, flows_orig
 
     @thread_worker
+    @_one_at_a_time
     def compute_diameter(image, channels, model_type):
         try:
             cp = _backends.load(3)
@@ -233,6 +249,7 @@ def widget_wrapper():
         then()
 
     @thread_worker
+    @_one_at_a_time
     def compute_masks(cp, major, masks_orig, flows_orig, cellprob_threshold, flow_threshold):
         flow_threshold = (31.0 - flow_threshold) / 10.
         if flow_threshold == 0.0:
