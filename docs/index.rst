@@ -15,8 +15,9 @@ The source code is on `GitHub`_.
 Please see the cellpose `documentation`_ for more information on the
 algorithm and the settings.
 
-If you use this plugin please cite the cellpose paper, and the Cellpose-SAM
-paper if you use the ``cpsam`` models (see the cellpose `repo`_ for the reference):
+If you use this plugin please cite the cellpose paper, the Cellpose3 paper if
+you use the Cellpose3 models, and the Cellpose-SAM paper if you use the
+``cpsam`` models (see the cellpose `repo`_ for the references):
 ::
 
       @article{stringer2021cellpose,

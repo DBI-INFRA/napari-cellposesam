@@ -20,7 +20,7 @@ The cellpose code was written by Carsen Stringer and Marius Pachitariu. To learn
 
 For problems with this plugin, open an [issue](https://github.com/jeskowagner/napari-cellposesam/issues). For problems with cellpose itself, open an [issue](https://github.com/MouseLand/cellpose/issues) on the cellpose repo.
 
-If you use this plugin, please cite the [cellpose paper](https://www.nature.com/articles/s41592-020-01018-x), and the Cellpose-SAM paper if you use the `cpsam` models (see the [cellpose repo](https://github.com/MouseLand/cellpose) for the reference):
+If you use this plugin, please cite the [cellpose paper](https://www.nature.com/articles/s41592-020-01018-x), the Cellpose3 paper if you use the Cellpose3 models, and the Cellpose-SAM paper if you use the `cpsam` models (see the [cellpose repo](https://github.com/MouseLand/cellpose) for the references):
 
 ```bibtex
 @article{stringer2021cellpose,
@@ -118,6 +118,8 @@ pip install --upgrade napari-cellposesam cellpose
 
 If you installed a CUDA build of torch, upgrade torch the same way you installed it, or pip may replace it with the CPU-only build.
 
+Coming from 0.1.x with a separate cellpose 3 environment (`cellpose<4`): from 0.2.0 that environment is no longer needed, since one environment runs both the Cellpose3 and the cellpose 4 models. Upgrading it with the command above moves it to cellpose 4, and the plugin downloads cellpose 3 the first time you run a Cellpose3 model.
+
 ## Usage
 
 Open napari with the plugin docked:
@@ -149,6 +151,7 @@ napari-cellposesam relies on:
 - [napari](https://napari.org)
 - [magicgui](https://napari.org/magicgui/)
 - [cellpose], which in turn uses [torch](https://pytorch.org/), [numpy](https://numpy.org/), [scipy](https://scipy.org/), [opencv](https://opencv.org/) and others
+- [numba](https://numba.pydata.org), which the plugin installs the first time you run a Cellpose3 model
 
 [napari]: https://github.com/napari/napari
 [cellpose]: https://github.com/MouseLand/cellpose
