@@ -25,7 +25,7 @@ classifiers = [
 dependencies = [
     "napari>=0.6",
     "magicgui",
-    "cellpose>=3",
+    "cellpose==4.*",
     "imagecodecs",
 ]
 dynamic = ["version"]
@@ -50,6 +50,9 @@ testing = [
     "pytest-qt",
     "napari",
     "pyqt6",
+    # what the fetched cellpose 3 needs; installed with the rest so the tests never pip-install
+    # numba against an already-resolved numpy
+    "numba",
 ]
 
 [project.entry-points."napari.manifest"]

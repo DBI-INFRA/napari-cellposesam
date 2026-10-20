@@ -7,11 +7,12 @@
 [![License](https://img.shields.io/pypi/l/napari-cellposesam.svg?color=green)](https://github.com/jeskowagner/napari-cellposesam/raw/main/LICENSE)
 [![website](https://img.shields.io/website?url=https%3A%2F%2Fwww.cellpose.org)](https://www.cellpose.org)
 
-A [napari] plugin for cell segmentation with [cellpose], including Cellpose-SAM (cellpose v4).
+A [napari] plugin for cell segmentation with [cellpose], including Cellpose-SAM (cellpose 4).
 
 This is a fork of [MouseLand/cellpose-napari](https://github.com/MouseLand/cellpose-napari), the original plugin by Carsen Stringer. It adds:
 
-- support for cellpose v4 and the Cellpose-SAM (`cpsam`) models, while still working with cellpose v3
+- support for Cellpose-SAM (`cpsam`) and Cellpose3 models in the same
+  environment and UI
 - z/channel axis selection for 3D and 4D images
 - compatibility with new napari versions
 
@@ -63,23 +64,41 @@ If you have issues installing cellpose, see the [cellpose installation docs](htt
 
 ### Cellpose3 models
 
-The plugin uses whichever cellpose version is installed. By default that is cellpose v4, which provides the Cellpose-SAM and CPDINO models. To use the Cellpose3 models (`cyto3`, `nuclei`, etc.), install cellpose v3 instead, in a separate environment:
+The plugin installs cellpose 4, which provides the Cellpose-SAM and CPDINO models. The Cellpose3 models (`cyto3`, `nuclei`, etc.) are in the same model list. They need cellpose 3, which the plugin offers to download the first time you run one. It downloads cellpose 3.1.1.3 into a private folder without touching the installed cellpose, and installs [numba](https://numba.pydata.org) if it is missing. The plugin then picks the right cellpose version for each model, including custom models.
+
+The private copy is in `~/.cellpose/napari-cellposesam/cellpose-3.1.1.3-format1/_cellpose3` (`~` is your user folder, also on Windows). To keep it elsewhere, set the environment variable `NAPARI_CELLPOSESAM_CACHE` to a folder that then takes the place of `~/.cellpose/napari-cellposesam`. To reset it, delete `~/.cellpose/napari-cellposesam` (or the folder `NAPARI_CELLPOSESAM_CACHE` names): the plugin offers to download cellpose 3 again the next time you run a Cellpose3 model.
+
+To run the same download ahead of time, so that napari never prompts:
 
 ```
-conda create -n napari-cellpose3 python=3.12
-conda activate napari-cellpose3
-pip install "napari[all]" napari-cellposesam "cellpose<4"
+python -m napari_cellposesam fetch-cellpose3
 ```
 
-An environment can only hold one cellpose version, so you cannot switch between v3 and v4 models from within the plugin.
+The download goes to the home folder of whoever runs the command. For an environment shared by several users, set `NAPARI_CELLPOSESAM_CACHE` to a shared folder, both when running the command and for everyone who uses the environment. Users only need read access to it.
+
+Both need internet access and pip in the environment. If the environment has no pip, as in some uv-created ones, the plugin asks you to install it first.
 
 Don't install `cellpose-napari` next to this plugin. It lists the Cellpose3
-models, but with cellpose v4 installed it ignores the selected model and runs
+models, but with cellpose 4 installed it ignores the selected model and runs
 Cellpose-SAM, thus breaking it.
 
 ### GPU
 
-cellpose runs on CPU, NVIDIA GPUs (CUDA) and Apple silicon (MPS). For CUDA, install a CUDA build of torch following the [PyTorch instructions](https://pytorch.org/get-started/locally/) before or after installing the plugin. The plugin uses the GPU automatically if torch can see one.
+cellpose runs on CPU, NVIDIA GPUs (CUDA) and Apple silicon (MPS). The plugin uses a GPU automatically if torch can see one, for both the cellpose 4 and the Cellpose3 models.
+
+- **Apple silicon:** nothing to do, the torch from PyPI supports MPS.
+- **NVIDIA on Linux:** the torch from PyPI is a CUDA build, so it usually works as installed.
+- **NVIDIA on Windows:** the torch from PyPI is CPU-only. Reinstall torch and torchvision together from the PyTorch index, with the CUDA version the [PyTorch selector](https://pytorch.org/get-started/locally/) gives for your driver, e.g.:
+
+  ```
+  pip install --force-reinstall --no-deps torch torchvision --index-url https://download.pytorch.org/whl/cu126
+  ```
+
+Check that torch sees the GPU:
+
+```
+python -c "import torch; print('cuda', torch.cuda.is_available(), 'mps', torch.backends.mps.is_available())"
+```
 
 ### Optional: CPDINO models
 
@@ -97,7 +116,7 @@ Without it, cellpose logs a `Could not import CPDINO` warning on startup. This i
 pip install --upgrade napari-cellposesam cellpose
 ```
 
-In a cellpose v3 environment, use `"cellpose<4"` instead of `cellpose`, or the upgrade moves you to v4.
+If you installed a CUDA build of torch, upgrade torch the same way you installed it, or pip may replace it with the CPU-only build.
 
 ## Usage
 

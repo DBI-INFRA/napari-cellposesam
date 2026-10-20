@@ -5,32 +5,33 @@ There are more settings for cellpose that can be accessed using the CLI or
 through a jupyter notebook. See details at cellpose `docs`_.
 
 Listed are settings available through the napari widget. Some settings only
-exist with cellpose v3 or v4; the widget shows the ones that apply to the
-installed version. Please submit an `issue`_ if you would like a new setting
+exist for Cellpose3 or for cellpose 4 models; the widget shows the ones that
+apply to the selected model. Please submit an `issue`_ if you would like a new setting
 available in the widget.
 
 Model type
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-With cellpose v4 the built-in models are:
+The built-in models are:
 
 - ``cpsam_v2`` (default) and ``cpsam``: Cellpose-SAM models
 - ``cpdino`` and ``cpdino-vitb``: models with a DINOv3 backbone, which need
   DINOv3 installed (see :doc:`installation`)
-
-With cellpose v3 the built-in models are ``cyto3`` (default), ``cyto2``,
-``cyto``, ``nuclei`` and the cp3 dataset-specific models.
+- ``cyto3``, ``cyto2``, ``cyto``, ``nuclei`` and the cp3 dataset-specific
+  models: Cellpose3 models, which need cellpose 3. The plugin offers to
+  download it the first time you run one (see :doc:`installation`)
 
 Model weights are downloaded the first time a model is used. The Cellpose-SAM
 weights are about 1.2 GB.
 
 Select ``custom`` and set ``custom model path`` to use your own trained model.
+The plugin reads the model file to tell whether it needs cellpose 3 or 4.
 
-Channels (cellpose v3)
-~~~~~~~~~~~~~~~~~~~~~~~~
+Channels (Cellpose3 models)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Cellpose-SAM uses all channels of the image and has no channel settings.
-With cellpose v3 the widget shows ``channel to segment`` and
+For Cellpose3 models the widget shows ``channel to segment`` and
 ``optional nuclear channel``.
 
 Cytoplasm models (e.g. ``cyto3``)
@@ -61,9 +62,9 @@ Cellpose-SAM is trained to work over a wide range of cell sizes, so the
 default of 30 often works without changes. If cells are over-split, increase
 the diameter; if they are over-merged, decrease it.
 
-The cellpose v3 models are trained on images rescaled to a fixed diameter
+The Cellpose3 models are trained on images rescaled to a fixed diameter
 (30 pixels for ``cyto`` models, 17 pixels for ``nuclei``) and are more
-sensitive to this setting. With cellpose v3, click ``compute diameter from image``
+sensitive to this setting. With a Cellpose3 model, click ``compute diameter from image``
 to estimate the diameter automatically. The estimation is a two-step process
 using the `style` vector from the network, a 64-dimensional summary of the
 input image:

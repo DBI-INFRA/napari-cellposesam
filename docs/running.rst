@@ -31,10 +31,10 @@ Cellpose can segment 3D and 4D stacks. ``process stack as 3D`` is checked
 automatically when you select a 3D or 4D image; uncheck it to segment each
 slice in 2D instead.
 
-With cellpose v4, the widget shows ``z axis`` and ``channel axis`` selectors
+With cellpose 4 models, the widget shows ``z axis`` and ``channel axis`` selectors
 for 3D and 4D images. If the napari layer has axis labels ``z`` and ``c``,
 they are used as defaults. For a 3D image, set ``channel axis`` to
-``none (ZYX)`` if all three axes are spatial. With cellpose v3, label the
+``none (ZYX)`` if all three axes are spatial. With Cellpose3 models, label the
 channel axis of a 4D image with ``c`` instead.
 
 If the 3D segmentation is not working well and there is inhomogeneity in Z, try stitching 
