@@ -25,20 +25,39 @@ For full cellpose install instructions, see the cellpose `installation docs`_.
 Cellpose3 models
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The plugin uses whichever cellpose version is installed. By default that is
-cellpose v4, which provides the Cellpose-SAM and CPDINO models. To use the
-Cellpose3 models (``cyto3``, ``nuclei``, etc.), install cellpose v3 instead,
-in a separate environment:
+The plugin installs cellpose 4, which provides the Cellpose-SAM and CPDINO
+models. The Cellpose3 models (``cyto3``, ``nuclei``, etc.) are in the same
+model list. They need cellpose 3, which the plugin offers to download the
+first time you run one. It downloads cellpose 3.1.1.3 into a private folder
+without touching the installed cellpose, and installs `numba`_ if it is
+missing. The plugin then picks the right cellpose version for each model,
+including custom models.
+
+The private copy is in
+``~/.cellpose/napari-cellposesam/cellpose-3.1.1.3-format1/_cellpose3``
+(``~`` is your user folder, also on Windows). To keep it elsewhere, set the
+environment variable ``NAPARI_CELLPOSESAM_CACHE`` to a folder that then takes
+the place of ``~/.cellpose/napari-cellposesam``. To reset it, delete
+``~/.cellpose/napari-cellposesam`` (or the folder ``NAPARI_CELLPOSESAM_CACHE``
+names): the plugin offers to download cellpose 3 again the next time you run
+a Cellpose3 model.
+
+To run the same download ahead of time, so that napari never prompts:
 
 ::
 
-   pip install "napari[all]" napari-cellposesam "cellpose<4"
+   python -m napari_cellposesam fetch-cellpose3
 
-An environment can only hold one cellpose version, so you cannot switch
-between v3 and v4 models from within the plugin.
+The download goes to the home folder of whoever runs the command. For an
+environment shared by several users, set ``NAPARI_CELLPOSESAM_CACHE`` to a
+shared folder, both when running the command and for everyone who uses the
+environment. Users only need read access to it.
+
+Both need internet access and pip in the environment. If the environment has
+no pip, as in some uv-created ones, the plugin asks you to install it first.
 
 Don't install ``cellpose-napari`` next to this plugin. It lists the Cellpose3
-models, but with cellpose v4 installed it ignores the selected model and runs
+models, but with cellpose 4 installed it ignores the selected model and runs
 Cellpose-SAM, thus breaking it.
 
 GPU
@@ -90,4 +109,5 @@ If installation fails or the plugin doesn't load, please open an `issue`_.
 .. _installation docs: https://cellpose.readthedocs.io/en/latest/installation.html
 .. _PyTorch: https://pytorch.org/get-started/locally/
 .. _DINOv3: https://github.com/facebookresearch/dinov3
+.. _numba: https://numba.pydata.org
 .. _issue: https://github.com/jeskowagner/napari-cellposesam/issues
