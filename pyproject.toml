@@ -18,6 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
     "License :: OSI Approved :: BSD License",
     "Framework :: napari",
@@ -70,7 +71,7 @@ napari_cellposesam = ["napari.yaml"]
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py{311,312,313}-{linux,macos,windows}
+envlist = py{311,312,313,314}-{linux,macos,windows}
 isolated_build = true
 toxworkdir = /tmp/.tox
 
@@ -79,6 +80,7 @@ python =
     3.11: py311
     3.12: py312
     3.13: py313
+    3.14: py314
 
 [gh-actions:env]
 PLATFORM =
