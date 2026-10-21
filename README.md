@@ -88,7 +88,14 @@ cellpose runs on CPU, NVIDIA GPUs (CUDA) and Apple silicon (MPS). The plugin use
 
 - **Apple silicon:** nothing to do, the torch from PyPI supports MPS.
 - **NVIDIA on Linux:** the torch from PyPI is a CUDA build, so it usually works as installed.
-- **NVIDIA on Windows:** the torch from PyPI is CPU-only. Reinstall torch and torchvision together from the PyTorch index, with the CUDA version the [PyTorch selector](https://pytorch.org/get-started/locally/) gives for your driver, e.g.:
+- **NVIDIA on Windows:** the torch from PyPI is CPU-only. In a fresh environment, install torch and torchvision from the PyTorch index first, with the CUDA version the [PyTorch selector](https://pytorch.org/get-started/locally/) gives for your driver, then napari and the plugin, e.g.:
+
+  ```
+  pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+  pip install "napari[all]" napari-cellposesam
+  ```
+
+  If the plugin is already installed, reinstall torch and torchvision together instead:
 
   ```
   pip install --force-reinstall --no-deps torch torchvision --index-url https://download.pytorch.org/whl/cu126
