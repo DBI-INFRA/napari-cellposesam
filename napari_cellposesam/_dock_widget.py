@@ -397,7 +397,9 @@ def widget_wrapper():
                 flows = flows_orig[0].astype(np.uint8)
                 cellprob = flows_orig[2]
             outlines = cp.utils.masks_to_outlines(masks) * masks
-            if masks.ndim == 3 and widget._n_channels > 0:
+            # one mask per channel, so the results line up with the image layer
+            widget._repeat_channels = widget._n_channels > 0 and masks.ndim == image_layer.ndim - 1
+            if widget._repeat_channels:
                 ax = widget._channel_axis
                 n = widget._n_channels
                 masks = np.repeat(np.expand_dims(masks, axis=ax), n, axis=ax)
@@ -437,7 +439,7 @@ def widget_wrapper():
                         viewer.layers.remove(viewer.layers[layer_name])
                 widget.cellpose_layers = []
             try:
-                if image_layer.ndim > 2 and not process_3D and not float(stitch_threshold_3D):
+                if isinstance(masks, list):  # a stack segmented slice by slice
                     for mask, flow_orig in zip(masks, flows_orig):
                         _new_layers(cp, mask, flow_orig)
                 else:
@@ -463,6 +465,9 @@ def widget_wrapper():
         image = image_layer.data
         widget._n_channels = 0
         widget._channel_axis = None
+        # a 3D stack with a channel axis is one 2D image with channels
+        is_stack = image_layer.ndim > 2 and not (
+            major == 4 and image_layer.ndim == 3 and not image_layer.rgb and _channel_axis is not None)
 
         if image_layer.ndim == 4 and not image_layer.rgb:
             if major == 4:
@@ -493,8 +498,8 @@ def widget_wrapper():
             cellprob_threshold=cellprob_threshold,
             flow_threshold=flow_threshold,
             min_size=min_size,
-            do_3D=(process_3D and float(stitch_threshold_3D) == 0 and image_layer.ndim > 2),
-            stitch_threshold=float(stitch_threshold_3D) if image_layer.ndim > 2 else 0.0,
+            do_3D=(process_3D and float(stitch_threshold_3D) == 0 and is_stack),
+            stitch_threshold=float(stitch_threshold_3D) if is_stack else 0.0,
         )
         if major == 4:
             run_kwargs.update(
@@ -505,7 +510,7 @@ def widget_wrapper():
                 run_kwargs['z_axis'] = z_axis
                 run_kwargs['channel_axis'] = _channel_axis
             elif image_layer.ndim == 3 and not image_layer.rgb:
-                if _z_axis is not None:
+                if _z_axis is not None and is_stack:
                     run_kwargs['z_axis'] = _z_axis
                 if _channel_axis is not None:
                     run_kwargs['channel_axis'] = _channel_axis
@@ -531,7 +536,7 @@ def widget_wrapper():
 
     def update_masks(masks):
         outlines = widget._cp.utils.masks_to_outlines(masks) * masks
-        if masks.ndim == 3 and widget._n_channels > 0:
+        if widget._repeat_channels:
             ax = widget._channel_axis
             n = widget._n_channels
             masks = np.repeat(np.expand_dims(masks, axis=ax), n, axis=ax)
@@ -557,43 +562,69 @@ def widget_wrapper():
         widget.z_axis.visible = shown
         widget.channel_axis.visible = shown
 
+    def _labelled_axes(image_layer):
+        """the layer's z and channel axes from its axis labels, None where unlabelled"""
+        axis_labels = image_layer.axis_labels
+        z_val = np.nonzero([a == 'z' for a in axis_labels])[0]
+        chan = np.nonzero([a == 'c' for a in axis_labels])[0]
+        return (int(z_val[0]) if len(z_val) > 0 else None,
+                int(chan[0]) if len(chan) > 0 else None)
+
+    def _axis_choices(image_layer):
+        """z and channel axis choices for the layer"""
+        if image_layer is None or image_layer.ndim != 4:
+            return _z_axis_3d_choices, _channel_axis_3d_choices
+        z_val, chan = _labelled_axes(image_layer)
+        all_axes = list(range(image_layer.ndim))
+        z_choices = [i for i in all_axes if i != chan] if chan is not None else all_axes
+        c_choices = [i for i in all_axes if i != z_val] if z_val is not None else all_axes
+        return z_choices, c_choices
+
+    # callables, so napari's reset_choices on every layer change rebuilds them for the
+    # selected layer instead of restoring the choices the pickers were created with
+    widget.z_axis.choices = lambda _: _axis_choices(widget.image_layer.value)[0]
+    widget.channel_axis.choices = lambda _: _axis_choices(widget.image_layer.value)[1]
+
+    def _is_2d_with_channels(image_layer):
+        return _is_stack(image_layer) and image_layer.ndim == 3 and widget.channel_axis.value >= 0
+
     def _reset_axes(image_layer):
         """fill the axis pickers from the layer's axis labels, whichever model is selected,
         so they are right whenever a v4 model shows them"""
         if not _is_stack(image_layer):
             return
+        widget.z_axis.reset_choices()
+        widget.channel_axis.reset_choices()
+        z_val, chan = _labelled_axes(image_layer)
         if image_layer.ndim == 4:
-            axis_labels = image_layer.axis_labels
-            chan = np.nonzero([a == 'c' for a in axis_labels])[0]
-            chan = int(chan[0]) if len(chan) > 0 else None
-            z_val = np.nonzero([a == 'z' for a in axis_labels])[0]
-            z_val = int(z_val[0]) if len(z_val) > 0 else None
-
-            all_axes = list(range(image_layer.ndim))
-            z_choices = [i for i in all_axes if i != chan] if chan is not None else all_axes
-            c_choices = [i for i in all_axes if i != z_val] if z_val is not None else all_axes
-
-            widget.z_axis.choices = z_choices
+            z_choices, c_choices = widget.z_axis.choices, widget.channel_axis.choices
             widget.z_axis.value = z_val if z_val in z_choices else z_choices[0]
-            widget.channel_axis.choices = c_choices
             widget.channel_axis.value = chan if chan in c_choices else c_choices[0]
         else:
-            axis_labels = image_layer.axis_labels
-            chan = np.nonzero([a == 'c' for a in axis_labels])[0]
-            z_val = np.nonzero([a == 'z' for a in axis_labels])[0]
-            default_chan = int(chan[0]) if len(chan) > 0 else -1
-            default_z = int(z_val[0]) if len(z_val) > 0 else 0
-
-            widget.z_axis.choices = _z_axis_3d_choices
+            # a labelled channel axis without a z axis makes a 2D image with channels
+            default_z = z_val if z_val is not None else (-1 if chan is not None else 0)
             widget.z_axis.value = default_z
-            widget.channel_axis.choices = _channel_axis_3d_choices
-            widget.channel_axis.value = default_chan
+            widget.channel_axis.value = chan if chan is not None else -1
 
     @widget.image_layer.changed.connect
     def check_dims(image_layer):
-        widget.process_3D.value = _is_stack(image_layer)
         _reset_axes(image_layer)
+        widget.process_3D.value = _is_stack(image_layer) and not _is_2d_with_channels(image_layer)
         _show_axes()
+
+    # a 3D layer has either a z axis (ZYX) or a channel axis (2D with channels), not both
+    @widget.z_axis.changed.connect
+    def _z_excludes_channels(z_val):
+        layer = widget.image_layer.value
+        if _is_stack(layer) and layer.ndim == 3 and z_val >= 0:
+            widget.channel_axis.value = -1
+
+    @widget.channel_axis.changed.connect
+    def _channels_exclude_z(chan):
+        layer = widget.image_layer.value
+        if _is_stack(layer) and layer.ndim == 3 and chan >= 0:
+            widget.z_axis.value = -1
+            widget.process_3D.value = False
 
     def _update_model_controls(*_):
         widget.custom_model.visible = widget.model_type.value == 'custom'

@@ -16,6 +16,17 @@ open a sample image from File > Open Sample > napari-cellposesam.
     :align: center
     :alt: napari-cellposesam segmenting the 2D sample image
 
+2D images with channels in separate layers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Cellpose can use several channels of an image. If your channels are open as
+separate layers, select them and choose Merge to Stack from the layer context
+menu. Select the merged layer and set ``channel axis`` to ``0``, which sets
+``z axis`` to ``none`` and unchecks ``process stack as 3D``. Cellpose then
+segments the layer as one 2D image with channels and adds one set of result
+layers. A layer whose axis labels already mark a ``c`` axis gets these settings
+automatically. This needs a cellpose 4 model.
+
 Batch processing in 2D
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -34,7 +45,8 @@ slice in 2D instead.
 With cellpose 4 models, the widget shows ``z axis`` and ``channel axis`` selectors
 for 3D and 4D images. If the napari layer has axis labels ``z`` and ``c``,
 they are used as defaults. For a 3D image, set ``channel axis`` to
-``none (ZYX)`` if all three axes are spatial. With Cellpose3 models, label the
+``none (ZYX)`` if all three axes are spatial; a channel axis makes it a 2D image
+with channels (see above). With Cellpose3 models, label the
 channel axis of a 4D image with ``c`` instead.
 
 If the 3D segmentation is not working well and there is inhomogeneity in Z, try stitching 

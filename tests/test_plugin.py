@@ -146,6 +146,67 @@ def test_axes_survive_model_change(viewer_widget):
     assert widget.channel_axis.value == 0
 
 
+def test_axis_choices_survive_layer_changes(viewer_widget):
+    viewer, widget = viewer_widget
+    widget.image_layer.value = viewer.add_image(np.zeros((3, 64, 64)), name='stack')
+    widget.channel_axis.value = 0
+    viewer.add_image(np.zeros((64, 64)), name='other')  # napari resets the widget's choices
+    assert widget.image_layer.value.name == 'stack'
+    assert -1 in widget.z_axis.choices
+    assert widget.z_axis.value == -1
+    assert widget.channel_axis.value == 0
+
+
+def test_3d_axes_exclude_each_other(viewer_widget):
+    viewer, widget = viewer_widget
+    widget.image_layer.value = viewer.add_image(np.zeros((3, 64, 64)), name='stack')
+    assert widget.process_3D.value == True
+    widget.channel_axis.value = 0
+    assert widget.z_axis.value == -1
+    assert widget.process_3D.value == False
+    widget.z_axis.value = 0
+    assert widget.channel_axis.value == -1
+
+    # a labelled channel axis is picked up on selection
+    layer = viewer.add_image(np.zeros((3, 64, 64)), name='labelled')
+    layer.axis_labels = ('c', 'y', 'x')
+    widget.image_layer.value = layer
+    assert widget.channel_axis.value == 0
+    assert widget.z_axis.value == -1
+    assert widget.process_3D.value == False
+
+
+def test_merged_channels(qtbot, viewer_widget):
+    """channels in separate layers, merged to a stack, segment as one 2D image"""
+    from napari.layers._layer_actions import _merge_stack
+
+    viewer, widget = viewer_widget
+    [rgb] = viewer.open_sample(PLUGIN_NAME, 'rgb_2D')
+    viewer.layers.clear()
+    for i in range(3):
+        viewer.add_image(rgb.data[..., i], name=f'ch{i}')
+    viewer.layers.select_all()
+    _merge_stack(viewer.layers)
+    [stack] = viewer.layers
+    assert stack.data.shape[0] == 3
+
+    widget.model_type.value = 'cpsam'
+    widget.image_layer.value = stack
+    widget.channel_axis.value = 0
+    widget()
+
+    qtbot.waitUntil(lambda: bool(widget.cellpose_layers), timeout=360_000)
+    assert len(widget.cellpose_layers) == 1  # not one per channel
+    masks = viewer.layers[-1]
+    assert masks.data.shape == stack.data.shape  # one mask per channel
+    assert masks.data.max() == 37  # as for the same image loaded as RGB
+
+    old = masks.data
+    widget.compute_masks_button.native.click()
+    qtbot.waitUntil(lambda: masks.data is not old, timeout=60_000)
+    assert masks.data.shape == old.shape
+
+
 def _fake_model(path, **tensors):
     torch.save({k: torch.zeros(shape) for k, shape in tensors.items()}, path)
     return path
