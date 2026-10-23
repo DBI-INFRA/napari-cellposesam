@@ -49,6 +49,12 @@ they are used as defaults. For a 3D image, set ``channel axis`` to
 with channels (see above). With Cellpose3 models, label the
 channel axis of a 4D image with ``c`` instead.
 
+For 3D segmentation the plugin takes the voxel spacing from the layer's scale,
+which many readers set from the file and which you can set in the napari console,
+e.g. ``viewer.layers['stack'].scale = (2, 0.5, 0.5)``. If Z is sampled differently
+from Y and X, the plugin passes the ratio to cellpose as ``anisotropy``, and cellpose
+resamples Z to match before segmenting.
+
 If the 3D segmentation is not working well and there is inhomogeneity in Z, try stitching 
 masks using the ``stitch threshold slices`` option
 instead of checking ``process stack as 3D``. In this setting, 

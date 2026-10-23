@@ -1,3 +1,4 @@
+import logging
 import os
 from math import isclose
 from typing import Callable
@@ -7,6 +8,7 @@ import numpy as np
 import pytest
 import torch
 from napari_cellposesam import _backends
+from napari_cellposesam._dock_widget import _anisotropy
 
 PLUGIN_NAME = "napari-cellposesam"
 WIDGET_NAME = "cellpose"
@@ -234,6 +236,68 @@ def test_merged_channels(qtbot, viewer_widget):
     widget.compute_masks_button.native.click()
     qtbot.waitUntil(lambda: masks.data is not old, timeout=60_000)
     assert masks.data.shape == old.shape
+
+
+@pytest.fixture
+def recording_model(monkeypatch):
+    """cellpose 4's model swapped for a stand-in that finds no cells and records what eval gets"""
+    import cellpose.models
+
+    class Model:
+        calls = []
+        device = torch.device('cpu')
+
+        def __init__(self, **_):
+            pass
+
+        def eval(self, image, **kwargs):
+            self.calls.append(kwargs)
+            shape = tuple(s for i, s in enumerate(image.shape) if i != kwargs.get('channel_axis') and s > 1)
+            # without resampled dynamics, cellpose returns 3D flows at the Z size the network ran at
+            flow_shape = (int(shape[0] * (kwargs['anisotropy'] or 1)), *shape[1:])
+            flows = [np.zeros((*flow_shape, 3)), np.zeros((3, *flow_shape)), np.zeros(flow_shape)]
+            return np.zeros(shape, np.uint16), flows, None
+
+    monkeypatch.setattr(cellpose.models, 'CellposeModel', Model)
+    return Model
+
+
+@pytest.mark.parametrize('model_type, shape, scale, axes, stitch, anisotropy', [
+    ('cpsam', (8, 32, 32), (2, 0.5, 0.5), {}, '0', 4.0),
+    # Z need not come first
+    ('cpsam', (32, 32, 8), (0.5, 0.5, 2), {'z_axis': 2}, '0', 4.0),
+    ('cpsam', (2, 8, 32, 32), (1, 3, 0.5, 0.5), {'z_axis': 1, 'channel_axis': 0}, '0', 6.0),
+    # cellpose 3 takes the shortest axis as Z
+    ('cyto3', (32, 32, 8), (0.5, 0.5, 2), {}, '0', 4.0),
+    # cellpose keeps its default for isotropic layers, and when stitching 2D slices
+    ('cpsam', (8, 32, 32), (0.5, 0.5, 0.5), {}, '0', None),
+    ('cpsam', (8, 32, 32), (2, 0.5, 0.5), {}, '0.5', None),
+])
+def test_anisotropy_from_scale(qtbot, viewer_widget, recording_model, request, monkeypatch,
+                               model_type, shape, scale, axes, stitch, anisotropy):
+    if model_type in _backends.V3_MODELS:
+        monkeypatch.setattr(request.getfixturevalue('cellpose3').models, 'CellposeModel', recording_model)
+    viewer, widget = viewer_widget
+    widget.model_type.value = model_type
+    widget.image_layer.value = viewer.add_image(np.zeros(shape), name='stack', scale=scale)
+    for name, value in axes.items():
+        getattr(widget, name).value = value
+    widget.stitch_threshold_3D.value = stitch
+    widget()
+
+    qtbot.waitUntil(lambda: bool(widget.cellpose_layers), timeout=60_000)
+    [kwargs] = recording_model.calls
+    assert kwargs['do_3D'] == (stitch == '0')
+    assert kwargs['anisotropy'] == anisotropy
+    # the flows line up with the masks, whatever Z size the network ran at
+    masks, cellprob = viewer.layers['stack_cp_masks_000'], viewer.layers['stack_cp_cellprob_000']
+    np.testing.assert_allclose(cellprob.data.shape * cellprob.scale, masks.data.shape * masks.scale)
+
+
+def test_anisotropy_with_uneven_yx(caplog):
+    with caplog.at_level(logging.WARNING, logger='napari_cellposesam._dock_widget'):
+        assert _anisotropy((2, 0.5, 1.5), z_axis=0) == 2.0  # against the mean of Y and X
+    assert 'Y by 0.5 and X by 1.5' in caplog.text
 
 
 def _fake_model(path, **tensors):

@@ -47,6 +47,21 @@ def _dinov3_status(pretrained_model):
     return 'missing' if importlib.util.find_spec('dinov3') is None else 'stale'
 
 
+def _anisotropy(scale, z_axis, channel_axis=None):
+    """cellpose's anisotropy for a layer's scale: the Z spacing over the YX spacing, None if equal
+
+    `z_axis` and `channel_axis` index the layer's axes; the two other axes are Y and X.
+    """
+    y, x = (s for i, s in enumerate(scale) if i not in (z_axis, channel_axis))
+    if not np.isclose(y, x):
+        # cellpose resamples Z only, so Y and X keep their different spacings
+        logger.warning(f'the layer scales Y by {y} and X by {x}, but cellpose treats them '
+                       'as equal; the anisotropy is taken against their mean')
+        y = (y + x) / 2
+    anisotropy = float(scale[z_axis] / y)
+    return None if np.isclose(anisotropy, 1) else anisotropy
+
+
 _main_channel_choices = [('average all channels', 0), ('0=red', 1), ('1=green', 2), ('2=blue', 3),
                           ('3', 4), ('4', 5), ('5', 6), ('6', 7), ('7', 8), ('8', 9)]
 _nuclear_channel_choices = [('none', 0), ('0=red', 1), ('1=green', 2), ('2=blue', 3),
@@ -77,7 +92,7 @@ def widget_wrapper():
     def run_cellpose(major, image, diameter, resample, cellprob_threshold, flow_threshold,
                      min_size, do_3D, stitch_threshold,
                      model_type=None, custom_model=None, channels=None, channel_axis=None,
-                     z_axis=None):
+                     z_axis=None, anisotropy=None):
         # here, not on the GUI thread: loading cellpose 3 takes seconds of numba compiles
         try:
             cp = _backends.load(major)
@@ -108,6 +123,7 @@ def widget_wrapper():
                 flow_threshold=flow_threshold,
                 min_size=min_size,
                 do_3D=do_3D,
+                anisotropy=anisotropy,
                 stitch_threshold=stitch_threshold,
             )
             if channel_axis is not None:
@@ -122,6 +138,7 @@ def widget_wrapper():
                 flow_threshold=flow_threshold,
                 min_size=min_size,
                 do_3D=do_3D,
+                anisotropy=anisotropy,
                 stitch_threshold=stitch_threshold,
                 channels=channels,
                 channel_axis=channel_axis,
@@ -389,6 +406,7 @@ def widget_wrapper():
         def _new_layers(cp, masks, flows_orig):
             import cv2
 
+            flow_zoom = 1
             if masks.ndim == 2:
                 resize_image = cp.transforms.resize_image
                 flows = resize_image(flows_orig[0], masks.shape[-2], masks.shape[-1],
@@ -396,10 +414,12 @@ def widget_wrapper():
                 cellprob = resize_image(flows_orig[2], masks.shape[-2], masks.shape[-1],
                                         no_channels=True).squeeze()
             else:
-                # 3D: cellpose returns flows at the original resolution; resize_image
-                # would collapse the Z axis, so use the arrays directly.
+                # 3D: resize_image would collapse the Z axis, so use the arrays directly.
+                # without resampled dynamics they keep the size the network ran at (Z
+                # resampled by the anisotropy, YX by the diameter), so stretch them over the masks
                 flows = flows_orig[0].astype(np.uint8)
                 cellprob = flows_orig[2]
+                flow_zoom = np.divide(masks.shape, cellprob.shape)
             outlines = cp.utils.masks_to_outlines(masks) * masks
             # one mask per channel, so the results line up with the image layer
             widget._repeat_channels = widget._n_channels > 0 and masks.ndim == image_layer.ndim - 1
@@ -420,9 +440,9 @@ def widget_wrapper():
             name = image_layer.name
             layers = [
                 viewer.add_image(flows, name=name + '_cp_flows' + widget.iseg,
-                                 visible=False, rgb=True, scale=physical_scale),
+                                 visible=False, rgb=True, scale=physical_scale * flow_zoom),
                 viewer.add_image(cellprob, name=name + '_cp_cellprob' + widget.iseg,
-                                 visible=False, scale=physical_scale),
+                                 visible=False, scale=physical_scale * flow_zoom),
                 viewer.add_labels(outlines, name=name + '_cp_outlines' + widget.iseg,
                                   visible=False, scale=physical_scale),
                 viewer.add_labels(masks, name=name + '_cp_masks' + widget.iseg,
@@ -525,6 +545,23 @@ def widget_wrapper():
                 channels=[max(0, main_channel), max(0, optional_nuclear_channel)],
                 channel_axis=widget._channel_axis,
             )
+
+        if run_kwargs['do_3D']:
+            # cellpose resamples Z by the anisotropy, which the layer's scale gives
+            if major == 4:
+                z, chan = run_kwargs.get('z_axis'), run_kwargs.get('channel_axis')
+            else:
+                # cellpose 3 gets no z axis and guesses it as its convert_image does: a 4D
+                # image's unlabelled channel axis is its shortest, and Z is the shortest other
+                # axis if every axis is longer than 5, else the first other axis
+                shape = image_layer.data.shape
+                chan = widget._channel_axis
+                if chan is None and image_layer.ndim == 4:
+                    chan = int(np.argmin(shape))
+                spatial = [i for i in range(image_layer.ndim) if i != chan]
+                z = min(spatial, key=lambda i: shape[i]) if min(shape) > 5 else spatial[0]
+            if z is not None:  # else cellpose stops with an error of its own
+                run_kwargs['anisotropy'] = _anisotropy(image_layer.scale, z, chan)
 
         if major == 4 and model_type in MODEL_NAMES and not (MODEL_DIR / model_type).exists():
             show_info(f'downloading the {model_type} model weights: this is a large '
