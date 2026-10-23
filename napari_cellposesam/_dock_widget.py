@@ -285,7 +285,8 @@ def widget_wrapper():
                             min=0.0, max=3.0, step=0.05,
                             tooltip='threshold on gradient match to accept a mask '
                                     '(set higher to get more cells, or to zero to turn off)'),
-        min_size=dict(widget_type='SpinBox', label='min size (px)', value=15, min=1,
+        # max: magicgui caps it at 999 otherwise, smaller than many cells; this is Qt's largest int
+        min_size=dict(widget_type='SpinBox', label='min size (px)', value=15, min=1, max=2**31 - 1,
                       tooltip='minimum area per mask; smaller objects are removed'),
         compute_masks_button=dict(widget_type='PushButton',
                                   text='recompute last masks with new cellprob', enabled=False),
