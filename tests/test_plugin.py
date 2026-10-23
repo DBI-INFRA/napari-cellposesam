@@ -92,6 +92,35 @@ def test_basic_function(qtbot, viewer_widget, request, model_type, n_masks):
     assert masks.data.max() > 0
 
 
+@pytest.mark.parametrize('model_type', ['cpsam', 'cyto3'])
+def test_recompute_masks_matches_run(qtbot, viewer_widget, request, model_type):
+    """recomputing with new thresholds gives what a full run with them gives"""
+    if model_type in _backends.V3_MODELS:
+        request.getfixturevalue('cellpose3')
+    viewer, widget = viewer_widget
+    viewer.open_sample(PLUGIN_NAME, 'rgb_2D')
+    widget.model_type.value = model_type
+
+    def run():
+        old = widget.masks_orig if hasattr(widget, 'masks_orig') else None
+        widget()
+        qtbot.waitUntil(lambda: getattr(widget, 'masks_orig', None) is not old, timeout=360_000)
+        return viewer.layers[-1].data
+
+    default = run()
+    # stricter on both counts, so fewer masks than the defaults give
+    widget.flow_threshold.value = 0.1
+    widget.min_size.value = 900
+
+    old = widget.masks_orig
+    widget.compute_masks_button.native.click()
+    qtbot.waitUntil(lambda: widget.masks_orig is not old, timeout=60_000)
+    recomputed = viewer.layers[-1].data.copy()
+    assert 0 < recomputed.max() < default.max()
+
+    np.testing.assert_array_equal(recomputed, run())
+
+
 def test_compute_diameter(qtbot, viewer_widget, cellpose3):
     viewer, widget = viewer_widget
     viewer.open_sample(PLUGIN_NAME, 'rgb_2D')

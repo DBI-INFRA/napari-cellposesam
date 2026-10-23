@@ -128,6 +128,7 @@ def widget_wrapper():
             )
 
         masks, flows_orig, _ = CP.eval(image, **eval_kwargs)
+        device = CP.device
         del CP
         if not do_3D and stitch_threshold == 0 and masks.ndim > 2:
             flows = [[flows_orig[0][i],
@@ -136,7 +137,7 @@ def widget_wrapper():
                       flows_orig[3][:, i]] for i in range(masks.shape[0])]
             masks = list(masks)
             flows_orig = flows
-        return cp, masks, flows_orig
+        return cp, device, masks, flows_orig
 
     @thread_worker
     @_one_at_a_time
@@ -250,13 +251,15 @@ def widget_wrapper():
 
     @thread_worker
     @_one_at_a_time
-    def compute_masks(cp, major, masks_orig, flows_orig, cellprob_threshold, flow_threshold):
-        flow_threshold = (31.0 - flow_threshold) / 10.
+    def compute_masks(cp, major, device, masks_orig, flows_orig, cellprob_threshold, flow_threshold, min_size):
         if flow_threshold == 0.0:
             logger.debug('flow_threshold=0 => no masks thrown out due to model mismatch')
-        logger.debug(f'computing masks with cellprob_threshold={cellprob_threshold}, flow_threshold={flow_threshold}')
+        logger.debug(f'computing masks with cellprob_threshold={cellprob_threshold}, '
+                     f'flow_threshold={flow_threshold}, min_size={min_size}')
         kwargs = dict(cellprob_threshold=cellprob_threshold,
-                      flow_threshold=flow_threshold)
+                      flow_threshold=flow_threshold,
+                      min_size=min_size,
+                      device=device)  # the run's device, so the masks match a full run
         if major == 3:
             kwargs['resize'] = (masks_orig.shape[-2], masks_orig.shape[-1])
         # both the pinned cellpose 3.1.1.3 and cellpose v4 return the masks alone
@@ -430,7 +433,7 @@ def widget_wrapper():
             if isinstance(segmentation, str):  # cellpose failed to load
                 show_error(segmentation)
                 return
-            cp, masks, flows_orig = segmentation
+            cp, widget._device, masks, flows_orig = segmentation
             # only now, so a failed run keeps the previous results
             if clear_previous_segmentations:
                 layer_names = [layer.name for layer in viewer.layers]
@@ -641,10 +644,11 @@ def widget_wrapper():
 
     @widget.compute_masks_button.changed.connect
     def _compute_masks(e: Any):
-        mask_worker = compute_masks(widget._cp, widget._major, widget.masks_orig,
+        mask_worker = compute_masks(widget._cp, widget._major, widget._device, widget.masks_orig,
                                     widget.flows_orig,
                                     widget.cellprob_threshold.value,
-                                    widget.flow_threshold.value)
+                                    widget.flow_threshold.value,
+                                    widget.min_size.value)
         mask_worker.returned.connect(update_masks)
         mask_worker.start()
 
