@@ -206,6 +206,50 @@ def test_3d_axes_exclude_each_other(viewer_widget):
     assert widget.process_3D.value == False
 
 
+@pytest.mark.parametrize('shape, chan, z', [((2, 8, 32, 32), 0, 1), ((8, 2, 32, 32), 1, 0)])
+def test_unlabelled_4d_axes_differ(viewer_widget, shape, chan, z):
+    viewer, widget = viewer_widget
+    widget.image_layer.value = viewer.add_image(np.zeros(shape), name='stack')
+    assert (widget.channel_axis.value, widget.z_axis.value) == (chan, z)
+
+
+@pytest.mark.parametrize('model_type', ['cpsam', 'cyto3'])
+@pytest.mark.parametrize('process_3D', [True, False])
+def test_rgb_stack(qtbot, viewer_widget, recording_model, model_type, process_3D):
+    viewer, widget = viewer_widget
+    model = recording_model(model_type)
+    layer = viewer.add_image(np.zeros((8, 32, 32, 3)), name='stack', rgb=True, scale=(2, 1, 1))
+    masks = _segment(qtbot, viewer, widget, model_type, layer, process_3D=process_3D)
+    assert masks.data.shape == layer.data.shape[:-1]
+    [kwargs] = model.calls
+    assert kwargs['anisotropy'] == (2.0 if process_3D else None)
+
+
+@pytest.fixture
+def shown_errors(monkeypatch):
+    """the messages of the errors the widget shows"""
+    import napari.utils.notifications
+
+    errors = []
+    monkeypatch.setattr(napari.utils.notifications, 'show_error', errors.append)
+    return errors
+
+
+@pytest.mark.parametrize('shape, axes', [
+    ((8, 32, 32), {'z_axis': -1, 'channel_axis': -1}),
+    ((2, 8, 32, 32), {'z_axis': 1, 'channel_axis': 1}),
+])
+def test_unusable_axes(shown_errors, viewer_widget, recording_model, shape, axes):
+    viewer, widget = viewer_widget
+    model = recording_model('cpsam')
+    widget.image_layer.value = viewer.add_image(np.zeros(shape), name='stack')
+    for name, value in axes.items():
+        getattr(widget, name).value = value
+    widget()
+    assert len(shown_errors) == 1
+    assert not model.calls
+
+
 def test_merged_channels(qtbot, viewer_widget):
     """channels in separate layers, merged to a stack, segment as one 2D image"""
     from napari.layers._layer_actions import _merge_stack

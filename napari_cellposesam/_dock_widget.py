@@ -491,6 +491,13 @@ def widget_wrapper():
             _z_axis, _channel_axis = (0 if image_layer.ndim == 3 else None), -1
         elif image_layer.ndim == 2:  # the axis pickers are hidden and may be stale
             _z_axis = _channel_axis = None
+        elif _z_axis is None and _channel_axis is None:
+            show_error('choose the z axis of the stack, or a channel axis to segment it as '
+                       'one 2D image with channels')
+            return
+        elif _z_axis == _channel_axis:
+            show_error('the z axis and the channel axis must be different axes')
+            return
 
         image = image_layer.data
         # a 3D stack with a channel axis is one 2D image with channels
@@ -601,8 +608,10 @@ def widget_wrapper():
         z_val, chan = _labelled_axes(image_layer)
         if image_layer.ndim == 4:
             z_choices, c_choices = widget.z_axis.choices, widget.channel_axis.choices
-            widget.z_axis.value = z_val if z_val in z_choices else z_choices[0]
-            widget.channel_axis.value = chan if chan in c_choices else c_choices[0]
+            if chan not in c_choices:  # unlabelled: the shortest axis, as cellpose 3 guesses
+                chan = min(c_choices, key=lambda i: image_layer.data.shape[i])
+            widget.channel_axis.value = chan
+            widget.z_axis.value = z_val if z_val in z_choices else next(i for i in z_choices if i != chan)
         else:
             # a labelled channel axis without a z axis makes a 2D image with channels
             default_z = z_val if z_val is not None else (-1 if chan is not None else 0)
