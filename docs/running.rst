@@ -25,15 +25,15 @@ menu. Select the merged layer and set ``channel axis`` to ``0``, which sets
 ``z axis`` to ``none`` and unchecks ``process stack as 3D``. Cellpose then
 segments the layer as one 2D image with channels and adds one set of result
 layers. A layer whose axis labels already mark a ``c`` axis gets these settings
-automatically. This needs a cellpose 4 model.
+automatically.
 
 Batch processing in 2D
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To process several same-sized 2D images together, open them with
 File > Open Files as Stack, which loads them into one layer. Uncheck ``process stack as 3D`` and cellpose segments each image in 2D with
-the same settings, adding a separate set of result layers per image. You can
-export the results from the napari File menu.
+the same settings, adding one set of result layers that stacks the results like
+the images. You can export the results from the napari File menu.
 
 3D segmentation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -42,12 +42,17 @@ Cellpose can segment 3D and 4D stacks. ``process stack as 3D`` is checked
 automatically when you select a 3D or 4D image; uncheck it to segment each
 slice in 2D instead.
 
-With cellpose 4 models, the widget shows ``z axis`` and ``channel axis`` selectors
+The widget shows ``z axis`` and ``channel axis`` selectors
 for 3D and 4D images. If the napari layer has axis labels ``z`` and ``c``,
 they are used as defaults. For a 3D image, set ``channel axis`` to
 ``none (ZYX)`` if all three axes are spatial; a channel axis makes it a 2D image
-with channels (see above). With Cellpose3 models, label the
-channel axis of a 4D image with ``c`` instead.
+with channels (see above).
+
+For 3D segmentation the plugin takes the voxel spacing from the layer's scale,
+which many readers set from the file and which you can set in the napari console,
+e.g. ``viewer.layers['stack'].scale = (2, 0.5, 0.5)``. If Z is sampled differently
+from Y and X, the plugin passes the ratio to cellpose as ``anisotropy``, and cellpose
+resamples Z to match before segmenting.
 
 If the 3D segmentation is not working well and there is inhomogeneity in Z, try stitching 
 masks using the ``stitch threshold slices`` option
