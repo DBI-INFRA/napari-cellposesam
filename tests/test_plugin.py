@@ -330,6 +330,31 @@ def test_planes(qtbot, viewer_widget, recording_model, model_type, shape, axes):
 
 
 @pytest.mark.parametrize('model_type', ['cpsam', 'cyto3'])
+@pytest.mark.parametrize('shape, scale, axes, z', [
+    ((32, 32, 8), (0.5, 0.6, 2), {'z_axis': 2}, 2),
+    ((32, 8, 32), (0.5, 2, 0.6), {'z_axis': 1, 'process_3D': False}, 1),
+    ((2, 8, 32, 32), (1, 2, 0.5, 0.6), {'z_axis': 1, 'channel_axis': 0}, 1),
+    ((8, 2, 32, 32), (2, 1, 0.5, 0.6), {'z_axis': 0, 'channel_axis': 1}, 0),
+    ((3, 32, 32), (1, 0.5, 0.6), {'channel_axis': 0}, None),  # 2D with channels
+])
+def test_results_line_up_with_layer(qtbot, viewer_widget, recording_model, model_type, shape, scale, axes, z):
+    viewer, widget = viewer_widget
+    recording_model(model_type)
+    layer = viewer.add_image(np.zeros(shape), name='stack', scale=scale)
+    masks = _segment(qtbot, viewer, widget, model_type, layer, **axes)
+    assert masks.data.shape == layer.data.shape
+    np.testing.assert_array_equal(masks.scale, layer.scale)
+    if z is not None:  # the stand-in's cell fills the first Z plane
+        assert np.take(masks.data, 0, axis=z).all()
+        assert not np.take(masks.data, 1, axis=z).any()
+
+    old = masks.data
+    widget.compute_masks_button.native.click()
+    qtbot.waitUntil(lambda: masks.data is not old, timeout=60_000)
+    assert masks.data.shape == layer.data.shape
+
+
+@pytest.mark.parametrize('model_type', ['cpsam', 'cyto3'])
 def test_recompute_masks_in_3d(qtbot, viewer_widget, recording_model, model_type):
     """masks recompute from 3D flows, which the network ran at twice the Z size here"""
     viewer, widget = viewer_widget

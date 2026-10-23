@@ -62,6 +62,18 @@ def _anisotropy(scale, z_axis, channel_axis=None):
     return None if np.isclose(anisotropy, 1) else anisotropy
 
 
+def _to_layer_axes(result, z_at, channel_axis=None, n_channels=0):
+    """a cellpose result, which has Z first if any and then Y and X, in its layer's axis order
+
+    Z moves back to place `z_at` among the layer's spatial axes, and the result repeats
+    `n_channels` times along the layer's `channel_axis`, so it lines up with every channel.
+    """
+    result = np.moveaxis(result, 0, z_at)
+    if n_channels:
+        result = np.repeat(np.expand_dims(result, axis=channel_axis), n_channels, axis=channel_axis)
+    return result
+
+
 _main_channel_choices = [('average all channels', 0), ('0=red', 1), ('1=green', 2), ('2=blue', 3),
                           ('3', 4), ('4', 5), ('5', 6), ('6', 7), ('7', 8), ('8', 9)]
 _nuclear_channel_choices = [('none', 0), ('0=red', 1), ('1=green', 2), ('2=blue', 3),
@@ -408,7 +420,6 @@ def widget_wrapper():
 
             # what recomputing the masks from these flows needs to know
             widget._masks_shape, widget._do_3D, widget._planes = masks.shape, run_kwargs['do_3D'], planes
-            flow_zoom = 1
             if masks.ndim == 2:
                 resize_image = cp.transforms.resize_image
                 flows = resize_image(flows_orig[0], masks.shape[-2], masks.shape[-1],
@@ -421,24 +432,16 @@ def widget_wrapper():
                 # resampled by the anisotropy, YX by the diameter), so stretch them over the masks
                 flows = flows_orig[0].astype(np.uint8)
                 cellprob = flows_orig[2]
-                flow_zoom = np.divide(masks.shape, cellprob.shape)
             outlines = cp.utils.masks_to_outlines(masks) * masks
-            # one mask per channel, so the results line up with the image layer
-            widget._repeat_channels = widget._n_channels > 0 and masks.ndim == image_layer.ndim - 1
-            if widget._repeat_channels:
-                ax = widget._channel_axis
-                n = widget._n_channels
-                masks = np.repeat(np.expand_dims(masks, axis=ax), n, axis=ax)
-                outlines = np.repeat(np.expand_dims(outlines, axis=ax), n, axis=ax)
-                flows = np.repeat(np.expand_dims(flows, axis=ax), n, axis=ax)
-                cellprob = np.repeat(np.expand_dims(cellprob, axis=ax), n, axis=ax)
+            masks, outlines, flows, cellprob = map(to_layer, (masks, outlines, flows, cellprob))
+            flow_zoom = np.divide(masks.shape, cellprob.shape)
 
             widget.flows_orig = flows_orig
             widget.masks_orig = masks
-            widget._cp, widget._major = cp, major
+            widget._cp, widget._major, widget._to_layer = cp, major, to_layer
             widget.iseg = '_' + '%03d' % len(widget.cellpose_layers)
 
-            physical_scale = image_layer.scale[-3:] if len(image_layer.scale) > 3 else image_layer.scale
+            physical_scale = image_layer.scale
             name = image_layer.name
             layers = [
                 viewer.add_image(flows, name=name + '_cp_flows' + widget.iseg,
@@ -490,11 +493,17 @@ def widget_wrapper():
             _z_axis = _channel_axis = None
 
         image = image_layer.data
-        widget._channel_axis = _channel_axis
-        widget._n_channels = image.shape[_channel_axis] if _channel_axis is not None and not image_layer.rgb else 0
         # a 3D stack with a channel axis is one 2D image with channels
         is_stack = image_layer.ndim > 2 and not (
             image_layer.ndim == 3 and not image_layer.rgb and _channel_axis is not None)
+        # the results go back in the layer's axis order, with one copy per channel
+        spatial = [i for i in range(image_layer.ndim) if image_layer.rgb or i != _channel_axis]
+        z_at = spatial.index(_z_axis) if is_stack and _z_axis is not None else 0
+        if _channel_axis is None or image_layer.rgb:
+            to_layer = functools.partial(_to_layer_axes, z_at=z_at)
+        else:
+            to_layer = functools.partial(_to_layer_axes, z_at=z_at, channel_axis=_channel_axis,
+                                         n_channels=image.shape[_channel_axis])
 
         run_kwargs = dict(
             major=major,
@@ -534,11 +543,7 @@ def widget_wrapper():
 
     def update_masks(masks):
         outlines = widget._cp.utils.masks_to_outlines(masks) * masks
-        if widget._repeat_channels:
-            ax = widget._channel_axis
-            n = widget._n_channels
-            masks = np.repeat(np.expand_dims(masks, axis=ax), n, axis=ax)
-            outlines = np.repeat(np.expand_dims(outlines, axis=ax), n, axis=ax)
+        masks, outlines = widget._to_layer(masks), widget._to_layer(outlines)
 
         widget.viewer.value.layers[widget.image_layer.value.name + '_cp_masks' + widget.iseg].data = masks
         outline_str = widget.image_layer.value.name + '_cp_outlines' + widget.iseg
