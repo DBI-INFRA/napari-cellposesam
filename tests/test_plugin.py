@@ -420,6 +420,10 @@ def test_anisotropy_with_uneven_yx(caplog):
     assert 'Y by 0.5 and X by 1.5' in caplog.text
 
 
+def test_anisotropy_of_flipped_axes():
+    assert _anisotropy((-2, 0.5, -0.5), z_axis=0) == 4.0
+
+
 def _fake_model(path, **tensors):
     torch.save({k: torch.zeros(shape) for k, shape in tensors.items()}, path)
     return path

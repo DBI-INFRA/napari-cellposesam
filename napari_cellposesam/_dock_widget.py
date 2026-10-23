@@ -52,6 +52,7 @@ def _anisotropy(scale, z_axis, channel_axis=None):
 
     `z_axis` and `channel_axis` index the layer's axes; the two other axes are Y and X.
     """
+    scale = np.abs(scale)  # a negative scale flips an axis but keeps its spacing
     y, x = (s for i, s in enumerate(scale) if i not in (z_axis, channel_axis))
     if not np.isclose(y, x):
         # cellpose resamples Z only, so Y and X keep their different spacings
