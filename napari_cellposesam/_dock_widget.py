@@ -115,45 +115,34 @@ def widget_wrapper():
         else:
             CP = models.CellposeModel(model_type=model_type, gpu=True)
 
-        if major == 4:
-            eval_kwargs = dict(
-                diameter=diameter,
-                resample=resample,
-                cellprob_threshold=cellprob_threshold,
-                flow_threshold=flow_threshold,
-                min_size=min_size,
-                do_3D=do_3D,
-                anisotropy=anisotropy,
-                stitch_threshold=stitch_threshold,
-            )
-            if channel_axis is not None:
-                eval_kwargs['channel_axis'] = channel_axis
-            if z_axis is not None:
-                eval_kwargs['z_axis'] = z_axis
-        else:
-            eval_kwargs = dict(
-                diameter=diameter,
-                resample=resample,
-                cellprob_threshold=cellprob_threshold,
-                flow_threshold=flow_threshold,
-                min_size=min_size,
-                do_3D=do_3D,
-                anisotropy=anisotropy,
-                stitch_threshold=stitch_threshold,
-                channels=channels,
-                channel_axis=channel_axis,
-            )
+        eval_kwargs = dict(
+            diameter=diameter,
+            resample=resample,
+            cellprob_threshold=cellprob_threshold,
+            flow_threshold=flow_threshold,
+            min_size=min_size,
+            do_3D=do_3D,
+            anisotropy=anisotropy,
+            stitch_threshold=stitch_threshold,
+            channel_axis=channel_axis,
+            z_axis=z_axis,
+        )
+        if major == 3:
+            eval_kwargs['channels'] = channels
+        elif not do_3D and stitch_threshold == 0 and z_axis is not None:
+            # cellpose 4 takes a z axis only in 3D, so it gets the planes as a batch:
+            # Z first, channels last
+            image = np.moveaxis(image, z_axis, 0)
+            if channel_axis is None:
+                image, channel_axis = image[..., np.newaxis], -1
+            elif 0 <= channel_axis < z_axis:
+                channel_axis += 1
+            eval_kwargs.update(channel_axis=channel_axis, z_axis=None)
 
+        # a stack comes back with Z first, whichever axis it was
         masks, flows_orig, _ = CP.eval(image, **eval_kwargs)
         device = CP.device
         del CP
-        if not do_3D and stitch_threshold == 0 and masks.ndim > 2:
-            flows = [[flows_orig[0][i],
-                      flows_orig[1][:, i],
-                      flows_orig[2][i],
-                      flows_orig[3][:, i]] for i in range(masks.shape[0])]
-            masks = list(masks)
-            flows_orig = flows
         return cp, device, masks, flows_orig
 
     @thread_worker
@@ -268,7 +257,8 @@ def widget_wrapper():
 
     @thread_worker
     @_one_at_a_time
-    def compute_masks(cp, major, device, masks_orig, flows_orig, cellprob_threshold, flow_threshold, min_size):
+    def compute_masks(cp, major, device, masks_orig, flows_orig, cellprob_threshold, flow_threshold, min_size,
+                      planes=False):
         if flow_threshold == 0.0:
             logger.debug('flow_threshold=0 => no masks thrown out due to model mismatch')
         logger.debug(f'computing masks with cellprob_threshold={cellprob_threshold}, '
@@ -279,8 +269,12 @@ def widget_wrapper():
                       device=device)  # the run's device, so the masks match a full run
         if major == 3:
             kwargs['resize'] = (masks_orig.shape[-2], masks_orig.shape[-1])
+        dP, cellprob = flows_orig[1], flows_orig[2]
         # both the pinned cellpose 3.1.1.3 and cellpose v4 return the masks alone
-        return cp.dynamics.resize_and_compute_masks(flows_orig[1], cellprob=flows_orig[2], **kwargs)
+        if planes:  # a stack segmented plane by plane
+            return np.stack([cp.dynamics.resize_and_compute_masks(dP[:, i], cellprob=cellprob[i], **kwargs)
+                             for i in range(len(cellprob))])
+        return cp.dynamics.resize_and_compute_masks(dP, cellprob=cellprob, **kwargs)
 
     # -1 is a sentinel meaning "not specified" for z_axis and channel_axis.
     # This lets a single ComboBox serve both 3D (optional) and 4D (required) images.
@@ -433,7 +427,7 @@ def widget_wrapper():
 
             widget.flows_orig = flows_orig
             widget.masks_orig = masks
-            widget._cp, widget._major = cp, major
+            widget._cp, widget._major, widget._planes = cp, major, planes
             widget.iseg = '_' + '%03d' % len(widget.cellpose_layers)
 
             physical_scale = image_layer.scale[-3:] if len(image_layer.scale) > 3 else image_layer.scale
@@ -463,11 +457,7 @@ def widget_wrapper():
                         viewer.layers.remove(viewer.layers[layer_name])
                 widget.cellpose_layers = []
             try:
-                if isinstance(masks, list):  # a stack segmented slice by slice
-                    for mask, flow_orig in zip(masks, flows_orig):
-                        _new_layers(cp, mask, flow_orig)
-                else:
-                    _new_layers(cp, masks, flows_orig)
+                _new_layers(cp, masks, flows_orig)
 
                 for layer in viewer.layers:
                     layer.visible = False
@@ -486,33 +476,17 @@ def widget_wrapper():
         _channel_axis = channel_axis if channel_axis >= 0 else None
         _z_axis = z_axis if z_axis >= 0 else None
 
+        if image_layer.rgb:  # the colours are an extra, last axis of the data
+            _z_axis, _channel_axis = (0 if image_layer.ndim == 3 else None), -1
+        elif image_layer.ndim == 2:  # the axis pickers are hidden and may be stale
+            _z_axis = _channel_axis = None
+
         image = image_layer.data
-        widget._n_channels = 0
-        widget._channel_axis = None
+        widget._channel_axis = _channel_axis
+        widget._n_channels = image.shape[_channel_axis] if _channel_axis is not None and not image_layer.rgb else 0
         # a 3D stack with a channel axis is one 2D image with channels
         is_stack = image_layer.ndim > 2 and not (
-            major == 4 and image_layer.ndim == 3 and not image_layer.rgb and _channel_axis is not None)
-
-        if image_layer.ndim == 4 and not image_layer.rgb:
-            if major == 4:
-                widget._channel_axis = _channel_axis
-                if _channel_axis is not None:
-                    widget._n_channels = image.shape[_channel_axis]
-            else:
-                chan = np.nonzero([a == 'c' for a in viewer.dims.axis_labels])[0]
-                if len(chan) > 0:
-                    chan = int(chan[0])
-                    widget._channel_axis = chan
-                    widget._n_channels = image.shape[chan]
-        elif image_layer.ndim == 3 and not image_layer.rgb:
-            if major == 4:
-                widget._channel_axis = _channel_axis
-                if _channel_axis is not None:
-                    widget._n_channels = image.shape[_channel_axis]
-            else:
-                image = image[:, :, :, np.newaxis]
-        elif image_layer.rgb:
-            widget._channel_axis = -1
+            image_layer.ndim == 3 and not image_layer.rgb and _channel_axis is not None)
 
         run_kwargs = dict(
             major=major,
@@ -524,44 +498,19 @@ def widget_wrapper():
             min_size=min_size,
             do_3D=(process_3D and float(stitch_threshold_3D) == 0 and is_stack),
             stitch_threshold=float(stitch_threshold_3D) if is_stack else 0.0,
+            model_type=model_type,
+            custom_model=str(custom_model.resolve()),
+            z_axis=_z_axis,
+            channel_axis=_channel_axis,
         )
-        if major == 4:
-            run_kwargs.update(
-                model_type=model_type,
-                custom_model=str(custom_model.resolve()),
-            )
-            if image_layer.ndim == 4 and not image_layer.rgb:
-                run_kwargs['z_axis'] = z_axis
-                run_kwargs['channel_axis'] = _channel_axis
-            elif image_layer.ndim == 3 and not image_layer.rgb:
-                if _z_axis is not None and is_stack:
-                    run_kwargs['z_axis'] = _z_axis
-                if _channel_axis is not None:
-                    run_kwargs['channel_axis'] = _channel_axis
-        else:
-            run_kwargs.update(
-                model_type=model_type,
-                custom_model=str(custom_model.resolve()),
-                channels=[max(0, main_channel), max(0, optional_nuclear_channel)],
-                channel_axis=widget._channel_axis,
-            )
+        if major == 3:
+            run_kwargs['channels'] = [max(0, main_channel), max(0, optional_nuclear_channel)]
+        planes = is_stack and not run_kwargs['do_3D'] and not run_kwargs['stitch_threshold']
 
-        if run_kwargs['do_3D']:
+        if run_kwargs['do_3D'] and _z_axis is not None:
             # cellpose resamples Z by the anisotropy, which the layer's scale gives
-            if major == 4:
-                z, chan = run_kwargs.get('z_axis'), run_kwargs.get('channel_axis')
-            else:
-                # cellpose 3 gets no z axis and guesses it as its convert_image does: a 4D
-                # image's unlabelled channel axis is its shortest, and Z is the shortest other
-                # axis if every axis is longer than 5, else the first other axis
-                shape = image_layer.data.shape
-                chan = widget._channel_axis
-                if chan is None and image_layer.ndim == 4:
-                    chan = int(np.argmin(shape))
-                spatial = [i for i in range(image_layer.ndim) if i != chan]
-                z = min(spatial, key=lambda i: shape[i]) if min(shape) > 5 else spatial[0]
-            if z is not None:  # else cellpose stops with an error of its own
-                run_kwargs['anisotropy'] = _anisotropy(image_layer.scale, z, chan)
+            run_kwargs['anisotropy'] = _anisotropy(image_layer.scale, _z_axis,
+                                                   None if image_layer.rgb else _channel_axis)
 
         if major == 4 and model_type in MODEL_NAMES and not (MODEL_DIR / model_type).exists():
             show_info(f'downloading the {model_type} model weights: this is a large '
@@ -598,8 +547,8 @@ def widget_wrapper():
         return image_layer is not None and image_layer.ndim in (3, 4) and not image_layer.rgb
 
     def _show_axes():
-        """show the z/channel axis pickers for stacks under v4 models; v3 reads napari's axis labels"""
-        shown = _is_stack(widget.image_layer.value) and _selected_major() == 4
+        """show the z/channel axis pickers for stacks"""
+        shown = _is_stack(widget.image_layer.value)
         widget.z_axis.visible = shown
         widget.channel_axis.visible = shown
 
@@ -686,7 +635,8 @@ def widget_wrapper():
                                     widget.flows_orig,
                                     widget.cellprob_threshold.value,
                                     widget.flow_threshold.value,
-                                    widget.min_size.value)
+                                    widget.min_size.value,
+                                    widget._planes)
         mask_worker.returned.connect(update_masks)
         mask_worker.start()
 
