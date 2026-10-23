@@ -72,6 +72,8 @@ input image:
 1. Run the image through the cellpose network and obtain the style vector. Predict the size using a linear regression model from the style vector.
 2. Resize the image based on the predicted size and run cellpose again, and produce masks. Take the final estimated size as the median diameter of the predicted masks.
 
+For a 3D or 4D stack, the estimate comes from the Z plane on show in the viewer.
+
 If this estimate is incorrect, set the diameter by hand.
 
 With either version, you can also get an estimate from the image: create a

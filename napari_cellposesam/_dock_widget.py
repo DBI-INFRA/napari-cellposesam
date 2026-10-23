@@ -158,16 +158,35 @@ def widget_wrapper():
         del CP
         return cp, device, masks, flows_orig
 
+    def _data_axes(image_layer, z_axis, channel_axis):
+        """the z and channel axes of the layer's data from the pickers, None where it has none
+
+        Raises ValueError for axes cellpose cannot segment.
+        """
+        # -1 is the sentinel meaning "not specified" for both axis selectors
+        z_axis = z_axis if z_axis >= 0 else None
+        channel_axis = channel_axis if channel_axis >= 0 else None
+        if image_layer.rgb:  # the colours are an extra, last axis of the data
+            return (0 if image_layer.ndim == 3 else None), -1
+        if image_layer.ndim == 2:  # the axis pickers are hidden and may be stale
+            return None, None
+        if z_axis is None and channel_axis is None:
+            raise ValueError('choose the z axis of the stack, or a channel axis to segment it as '
+                             'one 2D image with channels')
+        if z_axis == channel_axis:
+            raise ValueError('the z axis and the channel axis must be different axes')
+        return z_axis, channel_axis
+
     @thread_worker
     @_one_at_a_time
-    def compute_diameter(image, channels, model_type):
+    def compute_diameter(image, channels, model_type, channel_axis=None):
         try:
             cp = _backends.load(3)
         except Exception as e:
             return _backends.load_error(3, e)
         model_type0 = model_type if model_type in _backends.V3_SIZE_MODELS else "cyto3"
         CP = cp.models.Cellpose(model_type=model_type0, gpu=True)
-        diam = CP.sz.eval(image, channels=channels, channel_axis=-1)[0]
+        diam = CP.sz.eval(image, channels=channels, channel_axis=channel_axis)[0]
         diam = np.around(diam, 2)
         del CP
         return diam
@@ -484,20 +503,10 @@ def widget_wrapper():
                 logger.error(e)
             widget.call_button.enabled = True
 
-        # -1 is the sentinel meaning "not specified" for both axis selectors
-        _channel_axis = channel_axis if channel_axis >= 0 else None
-        _z_axis = z_axis if z_axis >= 0 else None
-
-        if image_layer.rgb:  # the colours are an extra, last axis of the data
-            _z_axis, _channel_axis = (0 if image_layer.ndim == 3 else None), -1
-        elif image_layer.ndim == 2:  # the axis pickers are hidden and may be stale
-            _z_axis = _channel_axis = None
-        elif _z_axis is None and _channel_axis is None:
-            show_error('choose the z axis of the stack, or a channel axis to segment it as '
-                       'one 2D image with channels')
-            return
-        elif _z_axis == _channel_axis:
-            show_error('the z axis and the channel axis must be different axes')
+        try:
+            _z_axis, _channel_axis = _data_axes(image_layer, z_axis, channel_axis)
+        except ValueError as e:
+            show_error(str(e))
             return
 
         image = image_layer.data
@@ -697,9 +706,22 @@ def widget_wrapper():
         if _backends.v3_missing():
             offer_cellpose3_fetch(model_type, then=_compute_diameter)
             return
+        layer = widget.image_layer.value
+        try:
+            z, chan = _data_axes(layer, widget.z_axis.value, widget.channel_axis.value)
+        except ValueError as e:
+            show_error(str(e))
+            return
         channels = [max(0, widget.main_channel.value), max(0, widget.optional_nuclear_channel.value)]
-        image = widget.image_layer.value.data
-        diam_worker = compute_diameter(image, channels, model_type)
+        image = layer.data
+        if z is not None:
+            # cellpose estimates the size of cells in 2D, so in the plane on show
+            plane = int(np.clip(np.round(layer.world_to_data(widget.viewer.value.dims.point)[z]),
+                                0, image.shape[z] - 1))
+            image = np.take(image, plane, axis=z)
+            if chan is not None and chan > z:
+                chan -= 1
+        diam_worker = compute_diameter(image, channels, model_type, chan)
         diam_worker.returned.connect(_report_diameter)
         diam_worker.start()
 

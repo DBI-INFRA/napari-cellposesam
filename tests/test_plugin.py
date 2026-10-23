@@ -136,6 +136,40 @@ def test_compute_diameter(qtbot, viewer_widget, cellpose3):
     assert isclose(float(widget.diameter.value), 46, abs_tol=0.3)
 
 
+@pytest.mark.parametrize('channels', [False, True])
+def test_compute_diameter_of_stack(qtbot, viewer_widget, cellpose3, channels):
+    """a stack's diameter is that of the plane on show"""
+    viewer, widget = viewer_widget
+    [sample] = viewer.open_sample(PLUGIN_NAME, 'rgb_3D')
+    zcyx = sample.data[20:30]
+    viewer.layers.clear()
+    widget.model_type.value = 'cyto3'
+    widget.main_channel.value = 2  # 1=green
+
+    def diameter(layer, **axes):
+        widget.image_layer.value = layer
+        for name, value in axes.items():
+            getattr(widget, name).value = value
+        widget.diameter.value = '30'
+        with qtbot.waitSignal(widget.diameter.changed, timeout=120_000):
+            widget.compute_diameter_button.changed(None)
+        return float(widget.diameter.value)
+
+    plane = 6
+    if channels:
+        stack = viewer.add_image(zcyx, scale=(2, 1, 1, 1))
+        flat = viewer.add_image(zcyx[plane])
+        axes, flat_axes = {'z_axis': 0, 'channel_axis': 1}, {'channel_axis': 0}
+    else:
+        stack = viewer.add_image(zcyx[:, 1], scale=(2, 1, 1))
+        flat = viewer.add_image(zcyx[plane, 1])
+        axes, flat_axes = {'z_axis': 0}, {}
+    viewer.dims.set_point(viewer.dims.ndim - stack.ndim, plane * 2)
+    of_stack = diameter(stack, **axes)
+    assert of_stack != 30
+    assert of_stack == diameter(flat, **flat_axes)
+
+
 def test_widget_defaults(viewer_widget):
     _, widget = viewer_widget
     assert widget.diameter.value == "30"
