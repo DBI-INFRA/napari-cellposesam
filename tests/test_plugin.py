@@ -432,6 +432,21 @@ def test_results_line_up_with_layer(qtbot, viewer_widget, recording_model, model
     assert masks.data.shape == layer.data.shape
 
 
+def test_recompute_masks_of_last_run(qtbot, viewer_widget, recording_model):
+    """recomputing updates the last run's layers, whichever layer is selected since"""
+    viewer, widget = viewer_widget
+    recording_model('cpsam')
+    layer = viewer.add_image(np.zeros((32, 32)), name='image')
+    masks = _segment(qtbot, viewer, widget, 'cpsam', layer)
+    widget.image_layer.value = viewer.layers['image_cp_flows_000']
+
+    old = masks.data
+    widget.compute_masks_button.native.click()
+    qtbot.waitUntil(lambda: masks.data is not old, timeout=60_000)
+    assert masks.data.max() == 0  # the stand-in's flows hold no cells
+    assert viewer.layers['image_cp_outlines_000'].data.max() == 0
+
+
 @pytest.mark.parametrize('model_type', ['cpsam', 'cyto3'])
 def test_recompute_masks_in_3d(qtbot, viewer_widget, recording_model, model_type):
     """masks recompute from 3D flows, which the network ran at twice the Z size here"""

@@ -562,10 +562,11 @@ def widget_wrapper():
         outlines = widget._cp.utils.masks_to_outlines(masks) * masks
         masks, outlines = widget._to_layer(masks), widget._to_layer(outlines)
 
-        widget.viewer.value.layers[widget.image_layer.value.name + '_cp_masks' + widget.iseg].data = masks
-        outline_str = widget.image_layer.value.name + '_cp_outlines' + widget.iseg
-        if outline_str in widget.viewer.value.layers:
-            widget.viewer.value.layers[outline_str].data = outlines
+        # the last run's layers, whichever image layer is selected now
+        _, _, outlines_layer, masks_layer = widget.cellpose_layers[-1]
+        for layer, data in ((masks_layer, masks), (outlines_layer, outlines)):
+            if layer in widget.viewer.value.layers:
+                layer.data = data
         widget.masks_orig = masks
         logger.debug('masks updated')
 
