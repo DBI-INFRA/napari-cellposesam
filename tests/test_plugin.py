@@ -69,7 +69,13 @@ def test_basic_function(qtbot, viewer_widget, request, model_type, n_masks):
     if model_type in _backends.V3_MODELS:
         request.getfixturevalue('cellpose3')
     viewer, widget = viewer_widget
-    assert len(viewer.window.dock_widgets) == 1
+    from qtpy.QtWidgets import QDockWidget
+
+    # the widget sits in a dock of the viewer; Window.dock_widgets is new in napari 0.7
+    dock = widget.native
+    while dock is not None and not isinstance(dock, QDockWidget):
+        dock = dock.parentWidget()
+    assert dock is not None
 
     viewer.open_sample(PLUGIN_NAME, 'rgb_2D')
 
