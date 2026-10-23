@@ -329,6 +329,22 @@ def test_planes(qtbot, viewer_widget, recording_model, model_type, shape, axes):
     assert masks.data.max() == 0  # the stand-in's flows hold no cells
 
 
+@pytest.mark.parametrize('model_type', ['cpsam', 'cyto3'])
+def test_recompute_masks_in_3d(qtbot, viewer_widget, recording_model, model_type):
+    """masks recompute from 3D flows, which the network ran at twice the Z size here"""
+    viewer, widget = viewer_widget
+    recording_model(model_type)
+    layer = viewer.add_image(np.zeros((4, 32, 32)), name='stack', scale=(2, 1, 1))
+    masks = _segment(qtbot, viewer, widget, model_type, layer, z_axis=0, process_3D=True)
+    assert widget.flows_orig[2].shape == (8, 32, 32)
+
+    old = masks.data
+    widget.compute_masks_button.native.click()
+    qtbot.waitUntil(lambda: masks.data is not old, timeout=60_000)
+    assert masks.data.shape == old.shape
+    assert masks.data.max() == 0  # the stand-in's flows hold no cells
+
+
 def test_anisotropy_with_uneven_yx(caplog):
     with caplog.at_level(logging.WARNING, logger='napari_cellposesam._dock_widget'):
         assert _anisotropy((2, 0.5, 1.5), z_axis=0) == 2.0  # against the mean of Y and X

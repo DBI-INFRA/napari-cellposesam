@@ -257,24 +257,30 @@ def widget_wrapper():
 
     @thread_worker
     @_one_at_a_time
-    def compute_masks(cp, major, device, masks_orig, flows_orig, cellprob_threshold, flow_threshold, min_size,
-                      planes=False):
+    def compute_masks(cp, major, device, shape, flows_orig, cellprob_threshold, flow_threshold, min_size,
+                      do_3D=False, planes=False):
+        """the masks of `shape`, as cellpose returned them, from a run's flows with new thresholds"""
         if flow_threshold == 0.0:
             logger.debug('flow_threshold=0 => no masks thrown out due to model mismatch')
         logger.debug(f'computing masks with cellprob_threshold={cellprob_threshold}, '
                      f'flow_threshold={flow_threshold}, min_size={min_size}')
+        if do_3D and device.type == 'mps':  # as cellpose does, which has no 3D dynamics on MPS
+            import torch
+            device = torch.device('cpu')
         kwargs = dict(cellprob_threshold=cellprob_threshold,
                       flow_threshold=flow_threshold,
                       min_size=min_size,
                       device=device)  # the run's device, so the masks match a full run
-        if major == 3:
-            kwargs['resize'] = (masks_orig.shape[-2], masks_orig.shape[-1])
         dP, cellprob = flows_orig[1], flows_orig[2]
+        # without resampled dynamics the flows keep the size the network ran at
+        resize = tuple(shape) if do_3D else tuple(shape[-2:])
+        if major == 3 or cellprob.shape[-len(resize):] != resize:
+            kwargs['resize'] = resize
         # both the pinned cellpose 3.1.1.3 and cellpose v4 return the masks alone
         if planes:  # a stack segmented plane by plane
             return np.stack([cp.dynamics.resize_and_compute_masks(dP[:, i], cellprob=cellprob[i], **kwargs)
                              for i in range(len(cellprob))])
-        return cp.dynamics.resize_and_compute_masks(dP, cellprob=cellprob, **kwargs)
+        return cp.dynamics.resize_and_compute_masks(dP, cellprob=cellprob, do_3D=do_3D, **kwargs)
 
     # -1 is a sentinel meaning "not specified" for z_axis and channel_axis.
     # This lets a single ComboBox serve both 3D (optional) and 4D (required) images.
@@ -400,6 +406,8 @@ def widget_wrapper():
         def _new_layers(cp, masks, flows_orig):
             import cv2
 
+            # what recomputing the masks from these flows needs to know
+            widget._masks_shape, widget._do_3D, widget._planes = masks.shape, run_kwargs['do_3D'], planes
             flow_zoom = 1
             if masks.ndim == 2:
                 resize_image = cp.transforms.resize_image
@@ -427,7 +435,7 @@ def widget_wrapper():
 
             widget.flows_orig = flows_orig
             widget.masks_orig = masks
-            widget._cp, widget._major, widget._planes = cp, major, planes
+            widget._cp, widget._major = cp, major
             widget.iseg = '_' + '%03d' % len(widget.cellpose_layers)
 
             physical_scale = image_layer.scale[-3:] if len(image_layer.scale) > 3 else image_layer.scale
@@ -631,12 +639,12 @@ def widget_wrapper():
 
     @widget.compute_masks_button.changed.connect
     def _compute_masks(e: Any):
-        mask_worker = compute_masks(widget._cp, widget._major, widget._device, widget.masks_orig,
+        mask_worker = compute_masks(widget._cp, widget._major, widget._device, widget._masks_shape,
                                     widget.flows_orig,
                                     widget.cellprob_threshold.value,
                                     widget.flow_threshold.value,
                                     widget.min_size.value,
-                                    widget._planes)
+                                    widget._do_3D, widget._planes)
         mask_worker.returned.connect(update_masks)
         mask_worker.start()
 
