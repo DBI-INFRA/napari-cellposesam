@@ -39,6 +39,37 @@ If you use this plugin, please cite the [cellpose paper](https://www.nature.com/
 
 ## Installation
 
+### Installer
+
+The installer sets up napari and the plugin in a folder of their own, with the PyTorch build that fits your GPU (NVIDIA, AMD on Linux, Apple silicon, or CPU), and adds a desktop and app menu shortcut. It needs no Python or conda, but needs an internet connection while it runs.
+
+- **Windows:** download `napari-cellposesam-setup.exe` from the [releases](https://github.com/jeskowagner/napari-cellposesam/releases), or run in PowerShell:
+
+  ```
+  powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.ps1 | iex"
+  ```
+
+- **macOS and Linux:** run in a terminal:
+
+  ```
+  curl -LsSf https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh
+  ```
+
+Run it again to update. To uninstall, use the Windows Apps settings if you installed with the setup, or run:
+
+```
+# macOS, Linux
+curl -LsSf https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh -s -- --uninstall
+# Windows PowerShell
+$env:NAPARI_CELLPOSESAM_UNINSTALL = 1; irm https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.ps1 | iex
+```
+
+The top of each script lists the environment variables that set the install folder, the plugin version and the PyTorch build.
+
+To add the same shortcut for napari-cellposesam in an environment of your own, run `python -m napari_cellposesam shortcut` in it.
+
+### pip
+
 Requires Python 3.11 or newer. We recommend a fresh environment, e.g. with conda:
 
 ```

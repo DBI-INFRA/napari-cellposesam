@@ -1,0 +1,96 @@
+#!/bin/sh
+# Install napari and napari-cellposesam (macOS and Linux) into a folder of their own, with the
+# PyTorch build that fits this machine's GPU, and add an app shortcut.
+#
+#   curl -LsSf https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh
+#
+# Run it again to update. Pass --uninstall to remove the shortcuts and the install folder.
+#
+# Environment variables:
+#   NAPARI_CELLPOSESAM_HOME   install folder (default: ~/.local/share/napari-cellposesam)
+#   NAPARI_CELLPOSESAM_SPEC   what to install (default: napari-cellposesam), e.g. a version pin,
+#                             a wheel or a git URL
+#   NAPARI_CELLPOSESAM_TORCH  PyTorch build (default: auto), e.g. cpu, cu128 or rocm6.4
+#   NAPARI_CELLPOSESAM_NO_DESKTOP=1  add the app menu entry only, no desktop icon
+# SC2218 is a false positive of shellcheck 0.11 here: every function is defined before it runs
+# shellcheck disable=SC2218
+set -eu
+
+UV_VERSION=0.13.5
+PYTHON_VERSION=3.12
+ROOT="${NAPARI_CELLPOSESAM_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/napari-cellposesam}"
+SPEC="${NAPARI_CELLPOSESAM_SPEC:-napari-cellposesam}"
+TORCH="${NAPARI_CELLPOSESAM_TORCH:-auto}"
+# marks a folder this script made, so --uninstall never deletes anything else
+MARKER="$ROOT/.napari-cellposesam-install"
+UV="$ROOT/bin/uv"
+PYTHON="$ROOT/env/bin/python"
+
+say() { printf '\033[1m==> %s\033[0m\n' "$*"; }
+die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+
+fetch() {
+    if command -v curl >/dev/null 2>&1; then
+        curl --proto '=https' --tlsv1.2 -LsSf "$1"
+    elif command -v wget >/dev/null 2>&1; then
+        wget --https-only -qO- "$1"
+    else
+        die "curl or wget is needed to download uv"
+    fi
+}
+
+uninstall() {
+    [ -f "$MARKER" ] || die "$ROOT is not a napari-cellposesam install"
+    "$PYTHON" -m napari_cellposesam shortcut --remove || true
+    rm -rf "$ROOT"
+    say "Removed $ROOT"
+}
+
+install() {
+    if [ -e "$ROOT" ] && [ ! -f "$MARKER" ] && [ -n "$(ls -A "$ROOT")" ]; then
+        die "$ROOT exists and was not made by this installer; set NAPARI_CELLPOSESAM_HOME to another folder"
+    fi
+    mkdir -p "$ROOT"
+    touch "$MARKER"
+
+    # python, packages and their cache stay inside $ROOT, so deleting it removes everything
+    export UV_PYTHON_INSTALL_DIR="$ROOT/python"
+    export UV_CACHE_DIR="$ROOT/cache"
+    export UV_NO_CONFIG=1
+
+    uv_found=$("$UV" --version 2>/dev/null | cut -d' ' -f2 || true)
+    if [ "$uv_found" != "$UV_VERSION" ]; then
+        say "Downloading uv $UV_VERSION"
+        uv_installer=$(fetch "https://astral.sh/uv/$UV_VERSION/install.sh")
+        printf '%s\n' "$uv_installer" | env UV_INSTALL_DIR="$ROOT/bin" UV_NO_MODIFY_PATH=1 sh -s -- --quiet
+    fi
+
+    say "Installing Python $PYTHON_VERSION"
+    "$UV" python install --no-bin "$PYTHON_VERSION"
+    # --seed: pip, which the plugin uses to fetch cellpose 3
+    "$UV" venv --quiet --allow-existing --seed --managed-python --python "$PYTHON_VERSION" "$ROOT/env"
+
+    say "Installing napari and $SPEC (PyTorch build: $TORCH)"
+    "$UV" pip install --python "$PYTHON" --torch-backend "$TORCH" --upgrade "napari[all]" "$SPEC"
+
+    "$PYTHON" -c "import torch; print('PyTorch', torch.__version__, '| CUDA:', torch.cuda.is_available(), '| MPS:', torch.backends.mps.is_available())"
+
+    say "Adding shortcuts"
+    if [ "${NAPARI_CELLPOSESAM_NO_DESKTOP:-}" = 1 ]; then
+        "$PYTHON" -m napari_cellposesam shortcut --no-desktop
+    else
+        "$PYTHON" -m napari_cellposesam shortcut
+    fi
+
+    say "Done. Start napari-cellposesam from the shortcut, or run:"
+    echo "    \"$PYTHON\" -m napari_cellposesam launch"
+    echo "To uninstall:"
+    echo "    curl -LsSf https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh -s -- --uninstall"
+}
+
+# everything runs from here, so a download cut short by `curl | sh` runs nothing
+if [ "${1:-}" = "--uninstall" ]; then
+    uninstall
+else
+    install
+fi

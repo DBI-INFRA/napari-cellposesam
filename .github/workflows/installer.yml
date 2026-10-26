@@ -1,0 +1,126 @@
+# Runs the install scripts on all three platforms and builds the Windows setup .exe.
+# The plugin is installed from this checkout, so the scripts are tested with the code next to them.
+
+name: installer
+
+on:
+  pull_request:
+    paths:
+      - "installer/**"
+      - "napari_cellposesam/_shortcut.py"
+      - "napari_cellposesam/__main__.py"
+      - ".github/workflows/installer.yml"
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scripts:
+    name: install script, ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      NAPARI_CELLPOSESAM_SPEC: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # setuptools_scm needs the tag history for the version
+
+      # the runner context is not available in the job's env
+      - name: Set the install folder
+        shell: bash
+        run: echo "NAPARI_CELLPOSESAM_HOME=$RUNNER_TEMP/ncs-install" >> "$GITHUB_ENV"
+
+      - uses: tlambert03/setup-qt-libs@v1
+
+      - name: Install Windows OpenGL
+        if: runner.os == 'Windows'
+        run: |
+          git clone --depth 1 https://github.com/pyvista/gl-ci-helpers.git
+          powershell gl-ci-helpers/appveyor/install_opengl.ps1
+
+      - name: Install (macOS, Linux)
+        if: runner.os != 'Windows'
+        run: sh installer/install.sh
+
+      - name: Install (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./installer/install.ps1
+
+      - name: Run again to update
+        if: runner.os != 'Windows'
+        run: sh installer/install.sh
+
+      - name: Check that napari opens with the widget
+        uses: aganders3/headless-gui@v2
+        with:
+          run: ${{ runner.temp }}/ncs-install/${{ runner.os == 'Windows' && 'env/Scripts/python.exe' || 'env/bin/python' }} installer/smoke_test.py
+
+      - name: Uninstall (macOS, Linux)
+        if: runner.os != 'Windows'
+        run: |
+          sh installer/install.sh --uninstall
+          test ! -e "$NAPARI_CELLPOSESAM_HOME"
+
+      - name: Uninstall (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./installer/install.ps1 -Uninstall
+          if (Test-Path $env:NAPARI_CELLPOSESAM_HOME) { throw 'install folder is still there' }
+          if (Test-Path "$([Environment]::GetFolderPath('Desktop'))\napari-cellposesam.lnk") { throw 'desktop shortcut is still there' }
+
+  windows-setup:
+    name: Windows setup .exe
+    runs-on: windows-latest
+    env:
+      NAPARI_CELLPOSESAM_SPEC: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Build the setup
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://raw.githubusercontent.com/MouseLand/cellpose/main/cellpose/logo/cellpose.ico -OutFile installer/windows/cellpose.ico
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) {
+              choco install innosetup -y --no-progress
+              $env:Path += ";${env:ProgramFiles(x86)}\Inno Setup 6"
+          }
+          $version = (git describe --tags --always) -replace '^v', ''
+          iscc /DAppVersion=$version installer/windows/napari-cellposesam.iss
+
+      - name: Run the setup silently
+        shell: pwsh
+        run: |
+          $setup = Start-Process installer/windows/Output/napari-cellposesam-setup.exe -Wait -PassThru `
+              -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=desktopicon', '/LOG=setup.log'
+          Get-Content setup.log -Tail 20
+          if ($setup.ExitCode -ne 0) { throw "setup failed with exit code $($setup.ExitCode)" }
+          & "$env:LOCALAPPDATA\napari-cellposesam\env\Scripts\python.exe" -c "import napari_cellposesam, cellpose, torch"
+          if ($LASTEXITCODE -ne 0) { throw 'the installed environment does not work' }
+          if (-not (Test-Path "$([Environment]::GetFolderPath('Desktop'))\napari-cellposesam.lnk")) { throw 'no desktop shortcut' }
+
+      - name: Uninstall silently
+        shell: pwsh
+        run: |
+          Start-Process "$env:LOCALAPPDATA\napari-cellposesam\unins000.exe" -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES'
+          # the uninstaller finishes deleting itself in the background
+          for ($i = 0; ($i -lt 60) -and (Test-Path "$env:LOCALAPPDATA\napari-cellposesam"); $i++) { Start-Sleep 1 }
+          if (Test-Path "$env:LOCALAPPDATA\napari-cellposesam") { throw 'install folder is still there' }
+          if (Test-Path "$([Environment]::GetFolderPath('Desktop'))\napari-cellposesam.lnk") { throw 'desktop shortcut is still there' }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: napari-cellposesam-setup
+          path: installer/windows/Output/napari-cellposesam-setup.exe
