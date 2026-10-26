@@ -1,5 +1,5 @@
 """
-command line tools: `python -m napari_cellposesam fetch-cellpose3 | launch | shortcut`
+command line tools: `python -m napari_cellposesam fetch-cellpose3 | fetch-cpsam | launch | shortcut`
 """
 import argparse
 import sys
@@ -16,6 +16,17 @@ def _fetch_cellpose3(parser, args):
     if missing:  # e.g. numba installed somewhere this python does not look
         parser.exit(1, f'fetching cellpose 3 finished, but {", ".join(missing)} is still missing\n')
     print(f'cellpose 3 is ready in {_backends.cache_dir()}')
+    return 0
+
+
+def _fetch_cpsam(parser, args):
+    from cellpose import models
+
+    try:
+        path = models.cache_model_path('cpsam')
+    except Exception as e:
+        parser.exit(1, f'downloading the Cellpose-SAM model failed: {e}\n')
+    print(f'the Cellpose-SAM model is in {path}')
     return 0
 
 
@@ -49,6 +60,10 @@ def main(argv=None):
         help=f'download cellpose {_backends.V3_VERSION} for the Cellpose3 models, and install '
              'numba if it is missing: what napari offers the first time you run one'
     ).set_defaults(run=_fetch_cellpose3)
+    commands.add_parser(
+        'fetch-cpsam', help='download the Cellpose-SAM model, which cellpose otherwise downloads the first time '
+                            'you run it'
+    ).set_defaults(run=_fetch_cpsam)
     launch = commands.add_parser('launch', help='start napari with the cellpose widget open')
     launch.add_argument('paths', nargs='*', help='images to open')
     launch.set_defaults(run=_launch)

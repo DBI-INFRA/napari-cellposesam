@@ -30,6 +30,7 @@ WizardStyle=modern
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop icon"
+Name: "model"; Description: "Download the Cellpose-SAM &model now (about 1.2 GB), instead of the first time you segment"
 
 [Files]
 Source: "..\install.ps1"; DestDir: "{app}"; Flags: ignoreversion
@@ -77,6 +78,10 @@ begin
     Params := '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\install.ps1') + '"';
     if not WizardIsTaskSelected('desktopicon') then
       Params := Params + ' -NoDesktop';
+    if WizardIsTaskSelected('model') then
+      Params := Params + ' -Model yes'
+    else
+      Params := Params + ' -Model no';
     if not WizardSilent() then
       Params := Params + ' -PauseOnError';
     WizardForm.StatusLabel.Caption := 'Downloading and installing napari, cellpose and PyTorch. This takes a few minutes...';

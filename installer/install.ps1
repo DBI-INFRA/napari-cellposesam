@@ -12,9 +12,12 @@
 #                             a wheel or a git URL
 #   NAPARI_CELLPOSESAM_TORCH  PyTorch build (default: auto), e.g. cpu or cu128
 #   NAPARI_CELLPOSESAM_NO_DESKTOP=1  add the Start menu entry only, no desktop icon (or -NoDesktop)
+#   NAPARI_CELLPOSESAM_MODEL=1 or 0  download the Cellpose-SAM model now, or not (or -Model yes/no);
+#                             without it, the script asks
 #
 # -PauseOnError keeps the window open after a failure, for runs from the setup .exe
-param([switch]$Uninstall, [switch]$NoDesktop, [switch]$PauseOnError)
+param([switch]$Uninstall, [switch]$NoDesktop, [switch]$PauseOnError,
+      [ValidateSet('ask', 'yes', 'no')][string]$Model = 'ask')
 
 $ErrorActionPreference = 'Stop'
 trap {
@@ -54,6 +57,13 @@ if ($Uninstall -or $env:NAPARI_CELLPOSESAM_UNINSTALL -eq '1') {
 if ((Test-Path $Root) -and -not (Test-Path $Marker) -and (Get-ChildItem -Force $Root | Select-Object -First 1)) {
     throw "$Root exists and was not made by this installer; set NAPARI_CELLPOSESAM_HOME to another folder"
 }
+if ($env:NAPARI_CELLPOSESAM_MODEL -eq '1') { $Model = 'yes' }
+if ($env:NAPARI_CELLPOSESAM_MODEL -eq '0') { $Model = 'no' }
+if ($Model -eq 'ask') {
+    $answer = Read-Host 'Download the Cellpose-SAM model (about 1.2 GB) now? Otherwise napari downloads it the first time you segment. [Y/n]'
+    $Model = if ($answer -match '^[nN]') { 'no' } else { 'yes' }
+}
+
 New-Item -ItemType Directory -Force $Root | Out-Null
 New-Item -ItemType File -Force $Marker | Out-Null
 
@@ -84,6 +94,11 @@ if ($NoDesktop -or $env:NAPARI_CELLPOSESAM_NO_DESKTOP -eq '1') {
     Run $Python -m napari_cellposesam shortcut --no-desktop
 } else {
     Run $Python -m napari_cellposesam shortcut
+}
+
+if ($Model -eq 'yes') {
+    Say 'Downloading the Cellpose-SAM model'
+    Run $Python -m napari_cellposesam fetch-cpsam
 }
 
 Say 'Done. Start napari-cellposesam from the Start menu or desktop shortcut, or run:'

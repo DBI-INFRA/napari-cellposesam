@@ -22,6 +22,12 @@ On macOS and Linux, run in a terminal:
 
    curl -LsSf https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh
 
+The installer offers to download the Cellpose-SAM model right away (a tick
+box in the Windows setup, a question in the terminal); otherwise napari
+downloads it the first time you segment. The model goes to
+``~/.cellpose/models``, where any cellpose install finds it, so uninstalling
+keeps it.
+
 Run it again to update. To uninstall, use the Windows Apps settings if you
 installed with the setup, or run:
 

@@ -12,6 +12,8 @@
 #                             a wheel or a git URL
 #   NAPARI_CELLPOSESAM_TORCH  PyTorch build (default: auto), e.g. cpu, cu128 or rocm6.4
 #   NAPARI_CELLPOSESAM_NO_DESKTOP=1  add the app menu entry only, no desktop icon
+#   NAPARI_CELLPOSESAM_MODEL=1 or 0  download the Cellpose-SAM model now, or not; without it,
+#                             the script asks when run in a terminal and skips it otherwise
 # SC2218 is a false positive of shellcheck 0.11 here: every function is defined before it runs
 # shellcheck disable=SC2218
 set -eu
@@ -21,6 +23,7 @@ PYTHON_VERSION=3.12
 ROOT="${NAPARI_CELLPOSESAM_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/napari-cellposesam}"
 SPEC="${NAPARI_CELLPOSESAM_SPEC:-napari-cellposesam}"
 TORCH="${NAPARI_CELLPOSESAM_TORCH:-auto}"
+MODEL="${NAPARI_CELLPOSESAM_MODEL:-}"
 # marks a folder this script made, so --uninstall never deletes anything else
 MARKER="$ROOT/.napari-cellposesam-install"
 UV="$ROOT/bin/uv"
@@ -39,6 +42,16 @@ fetch() {
     fi
 }
 
+# asks on the terminal, which stays readable when the script itself comes through `curl | sh`
+ask_model() {
+    if [ -z "$MODEL" ] && (: </dev/tty) 2>/dev/null; then
+        printf 'Download the Cellpose-SAM model (about 1.2 GB) now? Otherwise napari downloads it\n'
+        printf 'the first time you segment. [Y/n] '
+        read -r answer </dev/tty || answer=n
+        case "$answer" in [nN]*) MODEL=0 ;; *) MODEL=1 ;; esac
+    fi
+}
+
 uninstall() {
     [ -f "$MARKER" ] || die "$ROOT is not a napari-cellposesam install"
     "$PYTHON" -m napari_cellposesam shortcut --remove || true
@@ -50,6 +63,7 @@ install() {
     if [ -e "$ROOT" ] && [ ! -f "$MARKER" ] && [ -n "$(ls -A "$ROOT")" ]; then
         die "$ROOT exists and was not made by this installer; set NAPARI_CELLPOSESAM_HOME to another folder"
     fi
+    ask_model
     mkdir -p "$ROOT"
     touch "$MARKER"
 
@@ -80,6 +94,11 @@ install() {
         "$PYTHON" -m napari_cellposesam shortcut --no-desktop
     else
         "$PYTHON" -m napari_cellposesam shortcut
+    fi
+
+    if [ "$MODEL" = 1 ]; then
+        say "Downloading the Cellpose-SAM model"
+        "$PYTHON" -m napari_cellposesam fetch-cpsam
     fi
 
     say "Done. Start napari-cellposesam from the shortcut, or run:"
