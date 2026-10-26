@@ -52,6 +52,47 @@ ask_model() {
     fi
 }
 
+# Qt 6 needs libxcb-cursor, which Ubuntu and some other distributions leave out. Without root,
+# copy conda-forge's build into Qt's own lib folder, which Qt searches first ($ORIGIN).
+# imagecodecs, a plugin dependency, unpacks the zstd-compressed .conda package.
+add_xcb_cursor() {
+    "$PYTHON" -I - <<'PY'
+import ctypes.util
+import hashlib
+import io
+import platform
+import sys
+import tarfile
+import urllib.request
+import zipfile
+from pathlib import Path
+
+import PyQt6
+
+PACKAGES = {
+    'x86_64': ('linux-64/xcb-util-cursor-0.1.6-hb03c661_0.conda',
+               'c2be9cae786fdb2df7c2387d2db31b285cf90ab3bfabda8fa75a596c3d20fc67'),
+    'aarch64': ('linux-aarch64/xcb-util-cursor-0.1.6-he30d5cf_0.conda',
+                '2e31eeeac0ad76229a565f1df3a8fb4ea54852a68404a99558adab9c92c0ac4d'),
+}
+target = Path(PyQt6.__file__).parent / 'Qt6' / 'lib' / 'libxcb-cursor.so.0'
+if ctypes.util.find_library('xcb-cursor') or target.exists() or platform.machine() not in PACKAGES:
+    sys.exit()
+path, sha256 = PACKAGES[platform.machine()]
+data = urllib.request.urlopen(f'https://conda.anaconda.org/conda-forge/{path}', timeout=60).read()
+if hashlib.sha256(data).hexdigest() != sha256:
+    sys.exit('the xcb-util-cursor download does not match its checksum')
+import imagecodecs
+
+with zipfile.ZipFile(io.BytesIO(data)) as conda:
+    pkg = next(name for name in conda.namelist() if name.startswith('pkg-'))
+    tar = tarfile.open(fileobj=io.BytesIO(imagecodecs.zstd_decode(conda.read(pkg))))
+lib = next(m for m in tar.getmembers() if m.isfile() and m.name.startswith('lib/libxcb-cursor.so.0'))
+target.write_bytes(tar.extractfile(lib).read())
+print(f'added {target}, which Qt needs')
+PY
+}
+
 uninstall() {
     [ -f "$MARKER" ] || die "$ROOT is not a napari-cellposesam install"
     "$PYTHON" -m napari_cellposesam shortcut --remove || true
@@ -88,6 +129,10 @@ install() {
     "$UV" pip install --python "$PYTHON" --torch-backend "$TORCH" --upgrade "napari[all]" "$SPEC"
 
     "$PYTHON" -c "import torch; print('PyTorch', torch.__version__, '| CUDA:', torch.cuda.is_available(), '| MPS:', torch.backends.mps.is_available())"
+
+    if [ "$(uname)" = Linux ]; then
+        add_xcb_cursor || say "Could not add libxcb-cursor; if napari does not open, run: sudo apt install libxcb-cursor0"
+    fi
 
     say "Adding shortcuts"
     if [ "${NAPARI_CELLPOSESAM_NO_DESKTOP:-}" = 1 ]; then

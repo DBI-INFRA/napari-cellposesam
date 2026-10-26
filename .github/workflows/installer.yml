@@ -80,6 +80,34 @@ jobs:
           if (Test-Path $env:NAPARI_CELLPOSESAM_HOME) { throw 'install folder is still there' }
           if (Test-Path "$([Environment]::GetFolderPath('Desktop'))\napari-cellposesam.lnk") { throw 'desktop shortcut is still there' }
 
+  # the runner images have libxcb-cursor0; a fresh Ubuntu desktop does not, so the script adds it
+  ubuntu-desktop:
+    name: install script, Ubuntu desktop libraries
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    env:
+      NAPARI_CELLPOSESAM_MODEL: 0
+    steps:
+      - name: Install what Ubuntu desktop has, plus a virtual display
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq curl git xvfb xauth libglib2.0-0t64 libgl1 libgl1-mesa-dri libegl1 \
+            libfontconfig1 libdbus-1-3 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-render-util0 libxcb-shape0 libxcb-randr0 libxcb-xkb1 libxcb-xinput0
+          ! dpkg -s libxcb-cursor0 2>/dev/null
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          NAPARI_CELLPOSESAM_SPEC="$GITHUB_WORKSPACE" sh installer/install.sh
+
+      - name: Check that napari opens with the widget
+        run: xvfb-run -a -s "-screen 0 1280x1024x24" ~/.local/share/napari-cellposesam/env/bin/python installer/smoke_test.py
+
   windows-setup:
     name: Windows setup .exe
     runs-on: windows-latest
