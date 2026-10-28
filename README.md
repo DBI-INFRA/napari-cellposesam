@@ -49,6 +49,8 @@ The installer sets up napari and the plugin in a folder of their own, with the P
   powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.ps1 | iex"
   ```
 
+  The setup is not code-signed, so Windows may show "Windows protected your PC" when you start it: click **More info**, then **Run anyway**. The PowerShell command installs the same without that warning.
+
 - **macOS and Linux:** run in a terminal:
 
   ```
