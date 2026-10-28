@@ -135,6 +135,7 @@ jobs:
           $version = (git describe --tags --always) -replace '^v', ''
           iscc /DAppVersion=$version installer/windows/napari-cellposesam.iss
 
+      # from PowerShell 7, so the setup's Windows PowerShell inherits PowerShell 7's module path
       - name: Run the setup silently
         shell: pwsh
         run: |

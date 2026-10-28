@@ -19,6 +19,12 @@
 param([switch]$Uninstall, [switch]$NoDesktop, [switch]$PauseOnError,
       [ValidateSet('ask', 'yes', 'no')][string]$Model = 'ask')
 
+# Windows PowerShell started from PowerShell 7 inherits its module path, then loads PowerShell 7's
+# modules and fails ("The member ... is already present"); keep only its own paths
+if ($PSVersionTable.PSEdition -eq 'Desktop') {
+    $env:PSModulePath = (($env:PSModulePath -split ';') -notmatch '\\PowerShell\\') -join ';'
+}
+
 $ErrorActionPreference = 'Stop'
 trap {
     Write-Host "error: $_" -ForegroundColor Red
