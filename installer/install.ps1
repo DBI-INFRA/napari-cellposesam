@@ -22,6 +22,7 @@ param([switch]$Uninstall, [switch]$NoDesktop, [switch]$PauseOnError,
 $ErrorActionPreference = 'Stop'
 trap {
     Write-Host "error: $_" -ForegroundColor Red
+    try { Stop-Transcript | Out-Null } catch {}
     if ($PauseOnError) { Read-Host 'Press Enter to close' }
     exit 1
 }
@@ -66,6 +67,8 @@ if ($Model -eq 'ask') {
 
 New-Item -ItemType Directory -Force $Root | Out-Null
 New-Item -ItemType File -Force $Marker | Out-Null
+# what the script says, and any error, also goes to install.log; uv's own output does not
+Start-Transcript -Path (Join-Path $Root 'install.log') | Out-Null
 
 # python, packages and their cache stay inside $Root, so deleting it removes everything
 $env:UV_PYTHON_INSTALL_DIR = Join-Path $Root 'python'
@@ -103,3 +106,4 @@ if ($Model -eq 'yes') {
 
 Say 'Done. Start napari-cellposesam from the Start menu or desktop shortcut, or run:'
 Write-Host "    & `"$Python`" -m napari_cellposesam launch"
+Stop-Transcript | Out-Null

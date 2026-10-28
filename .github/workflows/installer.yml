@@ -52,14 +52,20 @@ jobs:
         if: runner.os != 'Windows'
         run: sh installer/install.sh
 
+      # Windows PowerShell 5.1, which the one-liner and the setup .exe use
       - name: Install (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./installer/install.ps1
+
+      - name: Run again to update (macOS, Linux)
+        if: runner.os != 'Windows'
+        run: sh installer/install.sh
+
+      - name: Run again to update (Windows, PowerShell 7)
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./installer/install.ps1
-
-      - name: Run again to update
-        if: runner.os != 'Windows'
-        run: sh installer/install.sh
 
       - name: Check that napari opens with the widget
         uses: aganders3/headless-gui@v2
@@ -135,7 +141,10 @@ jobs:
           $setup = Start-Process installer/windows/Output/napari-cellposesam-setup.exe -Wait -PassThru `
               -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=desktopicon', '/LOG=setup.log'
           Get-Content setup.log -Tail 20
-          if ($setup.ExitCode -ne 0) { throw "setup failed with exit code $($setup.ExitCode)" }
+          if ($setup.ExitCode -ne 0) {
+              Get-Content "$env:LOCALAPPDATA\napari-cellposesam\install.log" -ErrorAction SilentlyContinue
+              throw "setup failed with exit code $($setup.ExitCode)"
+          }
           & "$env:LOCALAPPDATA\napari-cellposesam\env\Scripts\python.exe" -c "import napari_cellposesam, cellpose, torch"
           if ($LASTEXITCODE -ne 0) { throw 'the installed environment does not work' }
           if (-not (Test-Path "$([Environment]::GetFolderPath('Desktop'))\napari-cellposesam.lnk")) { throw 'no desktop shortcut' }

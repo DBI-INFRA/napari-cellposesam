@@ -91,6 +91,6 @@ begin
     InstallExitCode := ResultCode;
     if ResultCode <> 0 then
       SuppressibleMsgBox('Installing napari-cellposesam failed (exit code ' + IntToStr(ResultCode) + '). ' +
-        'Check the internet connection and run the setup again.', mbError, MB_OK, IDOK);
+        'Check the internet connection and run the setup again. The log is in ' + ExpandConstant('{app}\install.log') + '.', mbError, MB_OK, IDOK);
   end;
 end;
