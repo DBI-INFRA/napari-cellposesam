@@ -19,6 +19,12 @@ AppPublisher=napari-cellposesam contributors
 AppPublisherURL=https://github.com/jeskowagner/napari-cellposesam
 ; per user, no admin rights: napari's plugin manager writes into the install
 PrivilegesRequired=lowest
+; uv links each Python it installs through a junction, which RedirectionGuard (Inno Setup 6.7 and
+; later, passed on to install.ps1) refuses to follow when a user without admin rights made it. It
+; protects folders that other users can write to, and this install is in the user's own folder.
+#if Ver >= 0x06070000
+RedirectionGuard=no
+#endif
 DefaultDirName={localappdata}\napari-cellposesam
 DisableDirPage=yes
 DisableProgramGroupPage=yes
