@@ -1,0 +1,16 @@
+# Changes here will be overwritten by Copier; do not edit manually
+_commit: 7b4f56f
+_src_path: gh:jeskowagner/napari-installer-template
+app_id: 6A0C3B7E-3D59-4C55-9F4B-8C1C7E2B5F31
+app_name: napari-cellposesam
+branch: main
+comment: Cell segmentation with cellpose in napari
+dist: napari-cellposesam
+extra_setup_command: -m napari_cellposesam fetch-cpsam
+extra_setup_desc: download the Cellpose-SAM model (about 1.2 GB)
+plugin: napari-cellposesam
+repo: jeskowagner/napari-cellposesam
+setup_icon: ''
+shortcut_icon: cellpose:logo/logo.png
+torch: true
+widget: cellpose

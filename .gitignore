@@ -77,7 +77,3 @@ target/
 
 # written by setuptools_scm
 */_version.py
-
-# fetched from cellpose when building the Windows setup
-installer/windows/cellpose.ico
-installer/windows/Output/
