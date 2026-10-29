@@ -13,7 +13,7 @@ On Windows, download ``napari-cellposesam-setup.exe`` from the newest
 
 ::
 
-   curl -LsSf https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh
+   curl -LsSf https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.sh | sh
 
 The installer offers to download the Cellpose-SAM model (about 1.2 GB) while
 it installs. The model goes to ``~/.cellpose/models``, where any cellpose
@@ -41,7 +41,7 @@ To install the latest development version from GitHub:
 
 ::
 
-   pip install git+https://github.com/jeskowagner/napari-cellposesam
+   pip install git+https://github.com/DBI-INFRA/napari-cellposesam
 
 For full napari install instructions, see the napari `install`_ docs.
 For full cellpose install instructions, see the cellpose `installation docs`_.
@@ -150,11 +150,11 @@ uninstalling and reinstalling scipy:
 
 If installation fails or the plugin doesn't load, please open an `issue`_.
 
-.. _release: https://github.com/jeskowagner/napari-cellposesam/releases
-.. _installer instructions: https://github.com/jeskowagner/napari-cellposesam/blob/main/installer/README.md
+.. _release: https://github.com/DBI-INFRA/napari-cellposesam/releases
+.. _installer instructions: https://github.com/DBI-INFRA/napari-cellposesam/blob/main/installer/README.md
 .. _install: https://napari.org/stable/tutorials/fundamentals/installation.html
 .. _installation docs: https://cellpose.readthedocs.io/en/latest/installation.html
 .. _PyTorch: https://pytorch.org/get-started/locally/
 .. _DINOv3: https://github.com/facebookresearch/dinov3
 .. _numba: https://numba.pydata.org
-.. _issue: https://github.com/jeskowagner/napari-cellposesam/issues
+.. _issue: https://github.com/DBI-INFRA/napari-cellposesam/issues
