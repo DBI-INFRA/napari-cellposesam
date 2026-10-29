@@ -4,49 +4,23 @@ Installation
 Installer
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The installer sets up napari and the plugin in a folder of their own, with the
-PyTorch build that fits your GPU (NVIDIA, AMD on Linux, Apple silicon, or
-CPU), and adds a desktop and app menu shortcut. It needs no Python or conda,
-but needs an internet connection while it runs.
+The installer sets up napari and napari-cellposesam with the PyTorch build for
+your computer, and adds a desktop shortcut that opens napari with the plugin.
+You do not need Python or conda.
 
-On Windows, download ``napari-cellposesam-setup.exe`` from the `releases`_, or
-run in PowerShell:
-
-::
-
-   powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.ps1 | iex"
-
-The setup is not code-signed, so Windows may show "Windows protected your PC"
-when you start it: click **More info**, then **Run anyway**. The PowerShell
-command installs the same without that warning.
-
-On macOS and Linux, run in a terminal:
+On Windows, download ``napari-cellposesam-setup.exe`` from the newest
+`release`_ and run it. On macOS and Linux, open a terminal and run:
 
 ::
 
    curl -LsSf https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh
 
-The installer offers to download the Cellpose-SAM model right away (a tick
-box in the Windows setup, a question in the terminal); otherwise napari
-downloads it the first time you segment. The model goes to
-``~/.cellpose/models``, where any cellpose install finds it, so uninstalling
-keeps it.
+The installer offers to download the Cellpose-SAM model (about 1.2 GB) while
+it installs. The model goes to ``~/.cellpose/models``, where any cellpose
+install finds it, so uninstalling keeps it.
 
-Run it again to update. To uninstall, use the Windows Apps settings if you
-installed with the setup, or run:
-
-::
-
-   # macOS, Linux
-   curl -LsSf https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh -s -- --uninstall
-   # Windows PowerShell
-   $env:NAPARI_CELLPOSESAM_UNINSTALL = 1; irm https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.ps1 | iex
-
-The top of each script lists the environment variables that set the install
-folder, the plugin version and the PyTorch build.
-
-To add the same shortcut for napari-cellposesam in an environment of your own,
-run ``python -m napari_cellposesam shortcut`` in it.
+The `installer instructions`_ have the other ways to install, and how to
+update and uninstall.
 
 pip
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -176,7 +150,8 @@ uninstalling and reinstalling scipy:
 
 If installation fails or the plugin doesn't load, please open an `issue`_.
 
-.. _releases: https://github.com/jeskowagner/napari-cellposesam/releases
+.. _release: https://github.com/jeskowagner/napari-cellposesam/releases
+.. _installer instructions: https://github.com/jeskowagner/napari-cellposesam/blob/main/installer/README.md
 .. _install: https://napari.org/stable/tutorials/fundamentals/installation.html
 .. _installation docs: https://cellpose.readthedocs.io/en/latest/installation.html
 .. _PyTorch: https://pytorch.org/get-started/locally/
