@@ -6,7 +6,7 @@ You do not need Python or conda. You need an internet connection while it runs.
 
 ### Install on Windows
 
-Download `napari-cellposesam-setup.exe` from the [releases page](https://github.com/jeskowagner/napari-cellposesam/releases) and run it.
+Download `napari-cellposesam-setup.exe` from the [releases page](https://github.com/DBI-INFRA/napari-cellposesam/releases) and run it.
 It is under **Assets** in the newest release.
 The setup is not code-signed, so Windows may show "Windows protected your PC".
 If it does, click **More info**, then **Run anyway**.
@@ -17,7 +17,7 @@ Leave it open. It closes by itself when the installation is done.
 You can also install without the setup. Open PowerShell (search for it in the Start menu) and run:
 
 ```
-powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.ps1 | iex"
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.ps1 | iex"
 ```
 
 ### Install on macOS or Linux
@@ -25,13 +25,13 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jes
 Open a terminal and run the command below. On macOS, the Terminal app is in Applications > Utilities.
 
 ```
-curl -LsSf https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh
+curl -LsSf https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.sh | sh
 ```
 
 If the terminal says `curl` is not found, as on a fresh Ubuntu, run this instead:
 
 ```
-wget -qO- https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh
+wget -qO- https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.sh | sh
 ```
 
 Recent versions of PyTorch do not support Macs with an Intel processor, so the installation may fail on those Macs.
@@ -61,19 +61,19 @@ Otherwise, run the command for your system.
 On Windows, in PowerShell:
 
 ```
-powershell -ExecutionPolicy ByPass -c "& ([scriptblock]::Create((irm https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.ps1))) -Uninstall"
+powershell -ExecutionPolicy ByPass -c "& ([scriptblock]::Create((irm https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.ps1))) -Uninstall"
 ```
 
 On macOS or Linux, in a terminal:
 
 ```
-curl -LsSf https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh -s -- --uninstall
+curl -LsSf https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.sh | sh -s -- --uninstall
 ```
 
 or, without `curl`:
 
 ```
-wget -qO- https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh -s -- --uninstall
+wget -qO- https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.sh | sh -s -- --uninstall
 ```
 
 ### If something goes wrong
@@ -81,7 +81,7 @@ wget -qO- https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/
 If the installation stops with an error, check your internet connection and run the installer again.
 On Windows, the end of `install.log` in the install folder says what went wrong.
 On macOS and Linux, the error is in the last lines in the terminal.
-If it still fails, or napari does not start, report it on the [issues page](https://github.com/jeskowagner/napari-cellposesam/issues) and include those lines.
+If it still fails, or napari does not start, report it on the [issues page](https://github.com/DBI-INFRA/napari-cellposesam/issues) and include those lines.
 
 ### Advanced options
 

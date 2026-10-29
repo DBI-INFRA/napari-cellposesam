@@ -16,7 +16,7 @@ AppId={{6A0C3B7E-3D59-4C55-9F4B-8C1C7E2B5F31}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=napari-cellposesam contributors
-AppPublisherURL=https://github.com/jeskowagner/napari-cellposesam
+AppPublisherURL=https://github.com/DBI-INFRA/napari-cellposesam
 ; per user, no admin rights: napari's plugin manager writes into the install
 PrivilegesRequired=lowest
 ; uv links each Python it installs through a junction, which RedirectionGuard (Inno Setup 6.7 and

@@ -2,7 +2,7 @@
 # Install napari and napari-cellposesam (macOS and Linux) into a folder of their own, with the
 # PyTorch build that fits this machine's GPU, and add an app shortcut.
 #
-#   curl -LsSf https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.sh | sh
+#   curl -LsSf https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.sh | sh
 #
 # Run it again to update. Pass --uninstall to remove the shortcuts and the install folder.
 #
@@ -78,7 +78,7 @@ CONFIG = r"""{
     "launcher_spec": "napari-launcher\u003e=0.1,\u003c0.2",
     "plugin": "napari-cellposesam",
     "python_version": "3.12",
-    "repo": "jeskowagner/napari-cellposesam",
+    "repo": "DBI-INFRA/napari-cellposesam",
     "shortcut_icon": "cellpose:logo/logo.png",
     "torch": true,
     "widget": "cellpose"

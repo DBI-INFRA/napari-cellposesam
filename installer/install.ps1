@@ -1,11 +1,11 @@
 # Install napari and napari-cellposesam (Windows) into a folder of their own,
 # with the PyTorch build that fits this machine's GPU, and add Start menu and desktop shortcuts.
 #
-#   powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.ps1 | iex"
+#   powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.ps1 | iex"
 #
 # Run it again to update. To uninstall:
 #
-#   powershell -ExecutionPolicy ByPass -c "& ([scriptblock]::Create((irm https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/installer/install.ps1))) -Uninstall"
+#   powershell -ExecutionPolicy ByPass -c "& ([scriptblock]::Create((irm https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.ps1))) -Uninstall"
 #
 # or run a saved copy of this script with -Uninstall.
 #
@@ -93,7 +93,7 @@ CONFIG = r"""{
     "launcher_spec": "napari-launcher\u003e=0.1,\u003c0.2",
     "plugin": "napari-cellposesam",
     "python_version": "3.12",
-    "repo": "jeskowagner/napari-cellposesam",
+    "repo": "DBI-INFRA/napari-cellposesam",
     "shortcut_icon": "cellpose:logo/logo.png",
     "torch": true,
     "widget": "cellpose"
