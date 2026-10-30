@@ -32,9 +32,9 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
-Homepage = "https://github.com/jeskowagner/napari-cellposesam"
-"Source Code" = "https://github.com/jeskowagner/napari-cellposesam"
-"Bug Tracker" = "https://github.com/jeskowagner/napari-cellposesam/issues"
+Homepage = "https://github.com/DBI-INFRA/napari-cellposesam"
+"Source Code" = "https://github.com/DBI-INFRA/napari-cellposesam"
+"Bug Tracker" = "https://github.com/DBI-INFRA/napari-cellposesam/issues"
 
 [project.optional-dependencies]
 docs = [

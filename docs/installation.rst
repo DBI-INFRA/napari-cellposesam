@@ -1,6 +1,30 @@
 Installation
 ------------------------------
 
+Installer
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The installer sets up napari and napari-cellposesam with the PyTorch build for
+your computer, and adds a desktop shortcut that opens napari with the plugin.
+You do not need Python or conda.
+
+On Windows, download ``napari-cellposesam-setup.exe`` from the newest
+`release`_ and run it. On macOS and Linux, open a terminal and run:
+
+::
+
+   curl -LsSf https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.sh | sh
+
+The installer offers to download the Cellpose-SAM model (about 1.2 GB) while
+it installs. The model goes to ``~/.cellpose/models``, where any cellpose
+install finds it, so uninstalling keeps it.
+
+The `installer instructions`_ have the other ways to install, and how to
+update and uninstall.
+
+pip
+~~~~~~~~~~~~~~~~~~~~~~~
+
 napari-cellposesam requires Python 3.11 or newer. We recommend installing it
 into a fresh environment, e.g. with conda:
 
@@ -17,7 +41,7 @@ To install the latest development version from GitHub:
 
 ::
 
-   pip install git+https://github.com/jeskowagner/napari-cellposesam
+   pip install git+https://github.com/DBI-INFRA/napari-cellposesam
 
 For full napari install instructions, see the napari `install`_ docs.
 For full cellpose install instructions, see the cellpose `installation docs`_.
@@ -126,9 +150,11 @@ uninstalling and reinstalling scipy:
 
 If installation fails or the plugin doesn't load, please open an `issue`_.
 
+.. _release: https://github.com/DBI-INFRA/napari-cellposesam/releases
+.. _installer instructions: https://github.com/DBI-INFRA/napari-cellposesam/blob/main/installer/README.md
 .. _install: https://napari.org/stable/tutorials/fundamentals/installation.html
 .. _installation docs: https://cellpose.readthedocs.io/en/latest/installation.html
 .. _PyTorch: https://pytorch.org/get-started/locally/
 .. _DINOv3: https://github.com/facebookresearch/dinov3
 .. _numba: https://numba.pydata.org
-.. _issue: https://github.com/jeskowagner/napari-cellposesam/issues
+.. _issue: https://github.com/DBI-INFRA/napari-cellposesam/issues

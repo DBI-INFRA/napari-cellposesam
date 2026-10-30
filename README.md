@@ -1,10 +1,10 @@
 # napari-cellposesam <img src="docs/_static/favicon.ico" width="50" title="cellpose" alt="cellpose" align="right" vspace = "50">
 
 [![Documentation Status](https://readthedocs.org/projects/napari-cellposesam/badge/?version=latest)](https://napari-cellposesam.readthedocs.io/en/latest/)
-[![tests](https://github.com/jeskowagner/napari-cellposesam/actions/workflows/test_and_deploy.yml/badge.svg)](https://github.com/jeskowagner/napari-cellposesam/actions)
+[![tests](https://github.com/DBI-INFRA/napari-cellposesam/actions/workflows/test_and_deploy.yml/badge.svg)](https://github.com/DBI-INFRA/napari-cellposesam/actions)
 [![PyPI version](https://img.shields.io/pypi/v/napari-cellposesam)](https://pypi.org/project/napari-cellposesam/)
 [![Python version](https://img.shields.io/pypi/pyversions/napari-cellposesam)](https://pypi.org/project/napari-cellposesam/)
-[![License](https://img.shields.io/pypi/l/napari-cellposesam.svg?color=green)](https://github.com/jeskowagner/napari-cellposesam/raw/main/LICENSE)
+[![License](https://img.shields.io/pypi/l/napari-cellposesam.svg?color=green)](https://github.com/DBI-INFRA/napari-cellposesam/raw/main/LICENSE)
 [![website](https://img.shields.io/website?url=https%3A%2F%2Fwww.cellpose.org)](https://www.cellpose.org)
 
 A [napari] plugin for cell segmentation with [cellpose], including Cellpose-SAM (cellpose 4).
@@ -18,7 +18,7 @@ This is a fork of [MouseLand/cellpose-napari](https://github.com/MouseLand/cellp
 
 The cellpose code was written by Carsen Stringer and Marius Pachitariu. To learn about Cellpose, read the [**paper**](https://t.co/kBMXmPp3Yn?amp=1) or watch this [**talk**](https://t.co/JChCsTD0SK?amp=1).
 
-For problems with this plugin, open an [issue](https://github.com/jeskowagner/napari-cellposesam/issues). For problems with cellpose itself, open an [issue](https://github.com/MouseLand/cellpose/issues) on the cellpose repo.
+For problems with this plugin, open an [issue](https://github.com/DBI-INFRA/napari-cellposesam/issues). For problems with cellpose itself, open an [issue](https://github.com/MouseLand/cellpose/issues) on the cellpose repo.
 
 If you use this plugin, please cite the [cellpose paper](https://www.nature.com/articles/s41592-020-01018-x), the Cellpose3 paper if you use the Cellpose3 models, and the Cellpose-SAM paper if you use the `cpsam` models (see the [cellpose repo](https://github.com/MouseLand/cellpose) for the references):
 
@@ -35,9 +35,26 @@ If you use this plugin, please cite the [cellpose paper](https://www.nature.com/
 }
 ```
 
-![napari-cellposesam segmenting the 2D sample image](https://raw.githubusercontent.com/jeskowagner/napari-cellposesam/main/docs/_static/gui.png)
+![napari-cellposesam segmenting the 2D sample image](https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/docs/_static/gui.png)
 
 ## Installation
+
+### Installer
+
+The installer sets up napari and napari-cellposesam with the PyTorch build for your computer, and adds a desktop shortcut that opens napari with the plugin. You do not need Python or conda.
+
+- **Windows:** download `napari-cellposesam-setup.exe` from the newest [release](https://github.com/DBI-INFRA/napari-cellposesam/releases) and run it.
+- **macOS and Linux:** open a terminal and run:
+
+  ```
+  curl -LsSf https://raw.githubusercontent.com/DBI-INFRA/napari-cellposesam/main/installer/install.sh | sh
+  ```
+
+The installer offers to download the Cellpose-SAM model (about 1.2 GB) while it installs. The model goes to `~/.cellpose/models`, where any cellpose install finds it, so uninstalling keeps it.
+
+[installer/README.md](installer/README.md) has the other ways to install, and how to update and uninstall.
+
+### pip
 
 Requires Python 3.11 or newer. We recommend a fresh environment, e.g. with conda:
 
@@ -57,7 +74,7 @@ Or install the plugin from the napari plugin manager (Plugins > Install/Uninstal
 To install the latest development version from GitHub:
 
 ```
-pip install git+https://github.com/jeskowagner/napari-cellposesam
+pip install git+https://github.com/DBI-INFRA/napari-cellposesam
 ```
 
 If you have issues installing cellpose, see the [cellpose installation docs](https://cellpose.readthedocs.io/en/latest/installation.html).

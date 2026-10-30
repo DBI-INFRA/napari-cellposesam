@@ -35,7 +35,7 @@ you use the Cellpose3 models, and the Cellpose-SAM paper if you use the
 .. _documentation: https://cellpose.readthedocs.io
 .. _repo: https://github.com/MouseLand/cellpose
 .. _cellpose-napari: https://github.com/MouseLand/cellpose-napari
-.. _GitHub: https://github.com/jeskowagner/napari-cellposesam
+.. _GitHub: https://github.com/DBI-INFRA/napari-cellposesam
 
 
 .. toctree::

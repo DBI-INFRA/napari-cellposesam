@@ -139,4 +139,4 @@ See :doc:`running` for ``process stack as 3D``, ``stitch threshold slices``
 and the axis selectors.
 
 .. _docs: https://cellpose.readthedocs.io/en/latest/settings.html
-.. _issue: https://github.com/jeskowagner/napari-cellposesam/issues
+.. _issue: https://github.com/DBI-INFRA/napari-cellposesam/issues
