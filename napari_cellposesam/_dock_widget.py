@@ -6,6 +6,7 @@ Each segmentation picks its cellpose release from the selected model (see _backe
 from typing import Any
 
 import functools
+import inspect
 import numpy as np
 import logging
 import threading
@@ -22,6 +23,13 @@ _cellpose_lock = threading.Lock()
 
 
 def _one_at_a_time(func):
+    if inspect.isgeneratorfunction(func):  # holds the lock until the generator is done
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs):
+            with _cellpose_lock:
+                return (yield from func(*args, **kwargs))
+        return wrapped
+
     @functools.wraps(func)
     def wrapped(*args, **kwargs):
         with _cellpose_lock:
@@ -75,6 +83,55 @@ def _to_layer_axes(result, z_at, channel_axis=None, n_channels=0):
     return result
 
 
+def _busy_row():
+    """a hidden row of a spinner and a label that says what the widget is busy with"""
+    from qtpy.QtCore import Qt, QTimer
+    from qtpy.QtGui import QPainter, QPalette, QPen
+    from qtpy.QtWidgets import QHBoxLayout, QLabel, QWidget
+
+    class Spinner(QWidget):
+        """a turning arc in the text colour, so it follows napari's theme"""
+
+        def __init__(self):
+            super().__init__()
+            self.setFixedSize(16, 16)
+            self._angle = 0
+            self._timer = QTimer(self)
+            self._timer.setInterval(80)
+            self._timer.timeout.connect(self._turn)
+
+        def _turn(self):
+            self._angle = (self._angle + 30) % 360
+            self.update()
+
+        # it only turns while on screen
+        def showEvent(self, event):
+            self._timer.start()
+            super().showEvent(event)
+
+        def hideEvent(self, event):
+            self._timer.stop()
+            super().hideEvent(event)
+
+        def paintEvent(self, event):
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            pen = QPen(self.palette().color(QPalette.ColorRole.WindowText), 2)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            painter.drawArc(self.rect().adjusted(2, 2, -2, -2), -self._angle * 16, 270 * 16)
+
+    row = QWidget()
+    layout = QHBoxLayout(row)
+    layout.setContentsMargins(0, 0, 0, 0)
+    label = QLabel()
+    label.setWordWrap(True)
+    layout.addWidget(Spinner(), alignment=Qt.AlignmentFlag.AlignTop)
+    layout.addWidget(label, stretch=1)
+    row.hide()
+    return row, label
+
+
 _main_channel_choices = [('average all channels', 0), ('0=red', 1), ('1=green', 2), ('2=blue', 3),
                           ('3', 4), ('4', 5), ('5', 6), ('6', 7), ('7', 8), ('8', 9)]
 _nuclear_channel_choices = [('none', 0), ('0=red', 1), ('1=green', 2), ('2=blue', 3),
@@ -114,8 +171,6 @@ def widget_wrapper():
         models = cp.models
 
         if major == 4:
-            import inspect
-
             pretrained_model = custom_model if model_type == 'custom' else model_type
             device, gpu = cp.core.assign_device(gpu=True)
             model_kwargs = dict(gpu=gpu, device=device, pretrained_model=pretrained_model)
@@ -127,6 +182,7 @@ def widget_wrapper():
             CP = models.CellposeModel(pretrained_model=custom_model, gpu=True)
         else:
             CP = models.CellposeModel(model_type=model_type, gpu=True)
+        yield 'segmenting...'  # the weights, if they were missing, have downloaded
 
         eval_kwargs = dict(
             diameter=diameter,
@@ -226,6 +282,7 @@ def widget_wrapper():
         install_worker = pip_install_dinov3()
         install_worker.returned.connect(report_dinov3_install)
         install_worker.errored.connect(lambda e: report_dinov3_install(str(e) or repr(e)))
+        _while_busy(install_worker, 'installing DINOv3...')
         install_worker.start()
 
     def report_dinov3_install(error):
@@ -272,6 +329,7 @@ def widget_wrapper():
         fetch_worker = fetch_cellpose3()
         fetch_worker.returned.connect(lambda error: report_cellpose3_fetch(error, then))
         fetch_worker.errored.connect(lambda e: report_cellpose3_fetch(str(e) or repr(e), then))
+        _while_busy(fetch_worker, 'fetching cellpose 3...')
         fetch_worker.start()
 
     def report_cellpose3_fetch(error, then):
@@ -501,7 +559,6 @@ def widget_wrapper():
                                                     + (' + model match' if major == 3 else ''))
             except Exception as e:
                 logger.error(e)
-            widget.call_button.enabled = True
 
         try:
             _z_axis, _channel_axis = _data_axes(image_layer, z_axis, channel_axis)
@@ -546,17 +603,51 @@ def widget_wrapper():
             run_kwargs['anisotropy'] = _anisotropy(image_layer.scale, _z_axis,
                                                    None if image_layer.rgb else _channel_axis)
 
+        message = 'segmenting...'
         if major == 4 and model_type in MODEL_NAMES and not (MODEL_DIR / model_type).exists():
             show_info(f'downloading the {model_type} model weights: this is a large '
                       'one-time download, and segmentation starts once it finishes')
+            message = 'downloading...'
 
         cp_worker = run_cellpose(**run_kwargs)
         cp_worker.returned.connect(_new_segmentation)
+        _while_busy(cp_worker, message, widget.call_button)
         cp_worker.start()
 
     widget = magicgui(widget, **_mgui_kwargs)
     widget._fetching = False  # a cellpose 3 fetch is in flight
     widget._installing_dinov3 = False
+
+    # below the run button: what is running, so a long run does not look stuck
+    widget._busy_row, widget._busy_label = _busy_row()
+    widget.native.layout().addWidget(widget._busy_row)
+    _busy_with = {}  # worker: what it is doing
+
+    def _show_busy():
+        widget._busy_label.setText('\n'.join(_busy_with.values()))
+        widget._busy_row.setVisible(bool(_busy_with))
+
+    def _while_busy(worker, message, button=None):
+        """show `message` beside the spinner until `worker` ends, with `button` disabled till then
+
+        A worker that yields replaces its message with what it yields.
+        """
+        def update(message):
+            _busy_with[worker] = message
+            _show_busy()
+
+        def done():
+            del _busy_with[worker]
+            if button is not None:
+                button.enabled = True
+            _show_busy()
+
+        if button is not None:
+            button.enabled = False
+        if hasattr(worker, 'yielded'):
+            worker.yielded.connect(update)
+        worker.finished.connect(done)
+        update(message)
 
     def update_masks(masks):
         outlines = widget._cp.utils.masks_to_outlines(masks) * masks
@@ -671,6 +762,7 @@ def widget_wrapper():
                                     widget.min_size.value,
                                     widget._do_3D, widget._planes)
         mask_worker.returned.connect(update_masks)
+        _while_busy(mask_worker, 'recomputing masks...', widget.compute_masks_button)
         mask_worker.start()
 
     def _report_diameter(diam):
@@ -724,6 +816,7 @@ def widget_wrapper():
                 chan -= 1
         diam_worker = compute_diameter(image, channels, model_type, chan)
         diam_worker.returned.connect(_report_diameter)
+        _while_busy(diam_worker, 'computing diameter...', widget.compute_diameter_button)
         diam_worker.start()
 
     return widget
