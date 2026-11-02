@@ -10,7 +10,7 @@
 #   NAPARI_CELLPOSESAM_HOME      install folder (default: ~/.local/share/napari-cellposesam)
 #   NAPARI_CELLPOSESAM_SPEC      what to install (default: napari-cellposesam),
 #                       e.g. a version pin, a wheel or a git URL
-#   NAPARI_CELLPOSESAM_TORCH     PyTorch build (default: auto), e.g. cpu, cu128 or rocm6.4
+#   NAPARI_CELLPOSESAM_TORCH     PyTorch build (default: auto, with cpu for Intel GPUs), e.g. cpu, cu128, rocm6.4 or xpu
 #   NAPARI_CELLPOSESAM_NO_DESKTOP=1  add the app menu entry only, no desktop shortcut
 #   NAPARI_CELLPOSESAM_EXTRA_SETUP=1 or 0  download the Cellpose-SAM model (about 1.2 GB) now, or not;
 #                       without it, the script asks when run in a terminal and skips it otherwise
@@ -60,9 +60,11 @@ import argparse
 import ctypes.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import sysconfig
+import tempfile
 import traceback
 from pathlib import Path
 
@@ -95,6 +97,24 @@ XCB_CURSOR = {
         '2e31eeeac0ad76229a565f1df3a8fb4ea54852a68404a99558adab9c92c0ac4d',
     ),
 }
+
+# the parts of the Visual C++ runtime that packages need and the install's Python does not bring
+VC_RUNTIME = (
+    'msvcp140.dll',
+    'msvcp140_1.dll',
+    'msvcp140_2.dll',
+    'msvcp140_atomic_wait.dll',
+    'vcruntime140_threads.dll',
+    'vcomp140.dll',
+)
+VC_RUNTIME_URL = 'https://aka.ms/vs/17/release/vc_redist.x64.exe'
+# exits with 1 if a DLL in the folder VC_RUNTIME_FOLDER names has no valid signature from Microsoft
+MICROSOFT_SIGNED = (
+    'foreach ($dll in Get-ChildItem -LiteralPath $env:VC_RUNTIME_FOLDER -Filter *.dll) {'
+    ' $signature = Get-AuthenticodeSignature -LiteralPath $dll.FullName;'
+    " if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation')"
+    ' { exit 1 } }'
+)
 
 # which PyTorch build the install got
 TORCH_CHECK = (
@@ -164,11 +184,86 @@ def setting(config, environ, name, default=''):
     return environ.get(f'{config["env"]}_{name}') or default
 
 
-def install_command(config, environ, uv, python):
+def torch_backend(config, environ, uv, python):
+    """
+    The PyTorch build to install: <ENV>_TORCH if it names one, otherwise uv's pick for this machine. uv picks
+    XPU for any Intel display adapter, including integrated graphics. That build is much larger, and plugins
+    that only look for CUDA and MPS cannot use it, so the CPU build takes its place. If the check fails, uv
+    decides.
+    """
+    chosen = setting(config, environ, 'TORCH', 'auto')
+    if chosen != 'auto':
+        return chosen
+    command = [str(uv), 'pip', 'compile', '-', '--python', str(python), '--torch-backend', 'auto']
+    command += ['--no-deps', '--no-header', '--no-annotate', '--quiet']
+    try:
+        resolved = subprocess.run(
+            command, input='torch\n', capture_output=True, encoding='utf-8', errors='replace', check=False
+        )
+    except OSError:
+        return 'auto'
+    return 'cpu' if '+xpu' in resolved.stdout else 'auto'
+
+
+def install_command(config, environ, uv, python, backend=None):
     spec = setting(config, environ, 'SPEC', config['dist'])
     launcher = setting(config, environ, 'LAUNCHER', config['launcher_spec'])
-    torch = ['--torch-backend', setting(config, environ, 'TORCH', 'auto')] if config['torch'] else []
-    return [str(uv), 'pip', 'install', '--python', str(python), *torch, '--upgrade', 'napari[all]', spec, launcher]
+    torch = ['--torch-backend', backend] if backend else []
+    # --compile-bytecode: the first launch does not have to do it
+    options = ['--upgrade', '--compile-bytecode']
+    return [str(uv), 'pip', 'install', '--python', str(python), *torch, *options, 'napari[all]', spec, launcher]
+
+
+def microsoft_signed(folder):
+    command = [
+        'powershell',
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        MICROSOFT_SIGNED,
+    ]
+    try:
+        checked = subprocess.run(command, env={**os.environ, 'VC_RUNTIME_FOLDER': str(folder)}, check=False)
+    except OSError:
+        return False
+    return checked.returncode == 0
+
+
+def add_vc_runtime(uv, python, root, environ):
+    """
+    Puts the Visual C++ runtime from the msvc-runtime package next to the install's own python.exe if System32
+    lacks any of it. Windows searches that folder first, and only this install uses it. Packages may still load
+    without the runtime, so a failure here is a warning.
+    """
+    system = Path(environ.get('SystemRoot', r'C:\Windows'), 'System32')
+    if all((system / name).is_file() for name in VC_RUNTIME):
+        return
+    say('Adding the Visual C++ runtime')
+    try:
+        with tempfile.TemporaryDirectory(dir=root, ignore_cleanup_errors=True) as folder:
+            run(
+                str(uv),
+                'pip',
+                'install',
+                '--quiet',
+                '--python',
+                str(python),
+                '--target',
+                folder,
+                '--no-deps',
+                'msvc-runtime',
+            )
+            dlls = list(Path(folder).glob('*.dll'))
+            if not set(VC_RUNTIME) <= {dll.name for dll in dlls}:
+                raise Failed('the msvc-runtime package lacks part of the runtime')
+            if not microsoft_signed(folder):
+                raise Failed('the msvc-runtime package is not signed by Microsoft')
+            for dll in dlls:
+                shutil.copy2(dll, sys.base_prefix)
+    except (Failed, OSError) as e:
+        warn(f'Could not add the Visual C++ runtime ({e}). If napari does not start, install {VC_RUNTIME_URL}')
 
 
 def shortcut_command(config, environ, python, no_desktop=False):
@@ -289,11 +384,14 @@ def install(config, root, environ, no_desktop=False, extra_setup='ask'):
     extra_setup_now = bool(config['extra_setup_command']) and wants_extra_setup(config, environ, extra_setup)
 
     spec = setting(config, environ, 'SPEC', config['dist'])
-    if config['torch']:
-        say(f'Installing napari and {spec} (PyTorch build: {setting(config, environ, "TORCH", "auto")})')
+    backend = torch_backend(config, environ, uv, python) if config['torch'] else None
+    if backend:
+        say(f'Installing napari and {spec} (PyTorch build: {backend})')
     else:
         say(f'Installing napari and {spec}')
-    run(*install_command(config, environ, uv, python))
+    run(*install_command(config, environ, uv, python, backend))
+    if WINDOWS:
+        add_vc_runtime(uv, python, root, environ)
     if config['torch']:
         run(str(python), '-c', TORCH_CHECK)
 
