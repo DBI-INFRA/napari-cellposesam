@@ -138,6 +138,8 @@ TORCH_CHECK = (
 )
 
 WINDOWS = sys.platform == 'win32'
+# where the shortcut other than the desktop one goes, on macOS and Linux
+MENU = 'the Applications folder in your home folder' if sys.platform == 'darwin' else 'the app menu'
 # on Windows, messages also go to install.log, which the setup's error message points to
 LOG = None
 COLOUR = not WINDOWS
@@ -292,6 +294,31 @@ def shortcut_command(config, environ, python, no_desktop=False):
     return command + ['-w', config['plugin']] + ([config['widget']] if config['widget'] else [])
 
 
+def add_shortcuts(config, environ, python, no_desktop=False):
+    """
+    adds the menu entry and, unless turned off, the desktop shortcut. Returns whether the desktop one is there.
+
+    Some computers do not let programs write to the desktop, such as with Windows' Controlled folder access.
+    The menu entry is then enough, and the install goes on without the desktop shortcut.
+    """
+    command = shortcut_command(config, environ, python, no_desktop)
+    if not subprocess.run(command, check=False).returncode:
+        return '--no-desktop' not in command
+    menu_only = shortcut_command(config, environ, python, no_desktop=True)
+    if '--no-desktop' not in command and not subprocess.run(menu_only, check=False).returncode:
+        menu = 'the Start menu' if WINDOWS else MENU
+        blocked = ' Windows security settings such as Controlled folder access can block it.' if WINDOWS else ''
+        warn(
+            f'Could not add the desktop shortcut (see above).{blocked} Start {config["app_name"]} from {menu} instead.'
+        )
+        return False
+    raise Failed(
+        f'napari and {config["dist"]} are installed, but the shortcuts are not. If the error above says a '
+        'file was not made by napari-launcher, rename or delete that file, then run this again. If it says '
+        f'a plugin or widget is not there, report it at https://github.com/{config["repo"]}/issues.'
+    )
+
+
 # where questions go and answers come from: in `curl | sh`, standard input is the script itself
 TERMINAL = ('CONIN$', 'CONOUT$') if WINDOWS else ('/dev/tty', '/dev/tty')
 
@@ -375,13 +402,14 @@ def fetch_xcb_cursor(folder):
     print(f'added {target}, which Qt needs')
 
 
-def summary(config, python):
+def summary(config, python, desktop=True):
     """the closing lines: how to start the app and, on macOS and Linux, how to uninstall it"""
     quote = "'" if WINDOWS else '"'
     widget = f' {quote}{config["widget"]}{quote}' if config['widget'] else ''
     if WINDOWS:
+        where = 'the Start menu or desktop shortcut' if desktop else 'the Start menu'
         return [
-            f'Done. Start {config["app_name"]} from the Start menu or desktop shortcut, or run:',
+            f'Done. Start {config["app_name"]} from {where}, or run:',
             f'    & "{python}" -m napari_launcher launch -w {config["plugin"]}{widget}',
         ]
     url = f'https://raw.githubusercontent.com/{config["repo"]}/{config["branch"]}/installer/install.sh'
@@ -414,18 +442,13 @@ def install(config, root, environ, no_desktop=False, extra_setup='ask'):
         add_xcb_cursor(config, uv)
 
     say('Adding shortcuts')
-    if subprocess.run(shortcut_command(config, environ, python, no_desktop), check=False).returncode:
-        raise Failed(
-            f'napari and {config["dist"]} are installed, but the shortcuts are not. If the error above says a '
-            'file was not made by napari-launcher, rename or delete that file, then run this again. If it says '
-            f'a plugin or widget is not there, report it at https://github.com/{config["repo"]}/issues.'
-        )
+    desktop = add_shortcuts(config, environ, python, no_desktop)
 
     if extra_setup_now:
         say(extra_setup_title(config))
         run(str(python), *config['extra_setup_command'].split())
 
-    first, *rest = summary(config, python)
+    first, *rest = summary(config, python, desktop)
     say(first)
     for line in rest:
         show(line)
