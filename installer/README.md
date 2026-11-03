@@ -41,12 +41,16 @@ The installer offers to download the Cellpose-SAM model (about 1.2 GB) as part o
 ### Where it goes
 
 Everything goes into one folder: `%LOCALAPPDATA%\napari-cellposesam` on Windows, and `~/.local/share/napari-cellposesam` on macOS and Linux.
+The Windows setup asks for this folder on the first install, so you can put it on another drive, such as D:.
+Choose a new or empty folder on a drive of this computer that uses NTFS, because uninstalling deletes the whole folder.
 With PyTorch, this folder can take several GB of disk space.
 
 ### Start napari
 
 Start napari with the "napari-cellposesam" shortcut.
 It is on your desktop, and also in the Start menu on Windows, in the Applications folder of your home folder on macOS, and in the app menu on Linux.
+Some Windows computers do not let programs add desktop shortcuts, such as when Windows Security has Controlled folder access on.
+The installer then adds the Start menu shortcut only.
 napari opens with napari-cellposesam ready to use. The first start can be slow; later starts are quicker.
 
 ### Update
