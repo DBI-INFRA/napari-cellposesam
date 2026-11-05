@@ -1,6 +1,6 @@
 # napari-cellposesam <img src="docs/_static/favicon.ico" width="50" title="cellpose" alt="cellpose" align="right" vspace = "50">
 
-[![Documentation Status](https://readthedocs.org/projects/napari-cellposesam/badge/?version=latest)](https://napari-cellposesam.readthedocs.io/en/latest/)
+[![Documentation Status](https://img.shields.io/readthedocs/napari-cellposesam/latest)](https://napari-cellposesam.readthedocs.io/en/latest/)
 [![tests](https://github.com/DBI-INFRA/napari-cellposesam/actions/workflows/test_and_deploy.yml/badge.svg)](https://github.com/DBI-INFRA/napari-cellposesam/actions)
 [![PyPI version](https://img.shields.io/pypi/v/napari-cellposesam)](https://pypi.org/project/napari-cellposesam/)
 [![Python version](https://img.shields.io/pypi/pyversions/napari-cellposesam)](https://pypi.org/project/napari-cellposesam/)
