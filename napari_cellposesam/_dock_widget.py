@@ -520,16 +520,17 @@ def widget_wrapper():
             widget.iseg = '_' + '%03d' % len(widget.cellpose_layers)
 
             physical_scale = image_layer.scale
+            units = image_layer.units
             name = image_layer.name
             layers = [
                 viewer.add_image(flows, name=name + '_cp_flows' + widget.iseg,
-                                 visible=False, rgb=True, scale=physical_scale * flow_zoom),
+                                 visible=False, rgb=True, scale=physical_scale * flow_zoom, units=units),
                 viewer.add_image(cellprob, name=name + '_cp_cellprob' + widget.iseg,
-                                 visible=False, scale=physical_scale * flow_zoom),
+                                 visible=False, scale=physical_scale * flow_zoom, units=units),
                 viewer.add_labels(outlines, name=name + '_cp_outlines' + widget.iseg,
-                                  visible=False, scale=physical_scale),
+                                  visible=False, scale=physical_scale, units=units),
                 viewer.add_labels(masks, name=name + '_cp_masks' + widget.iseg,
-                                  visible=False, scale=physical_scale),
+                                  visible=False, scale=physical_scale, units=units),
             ]
             widget.cellpose_layers.append(layers)
 

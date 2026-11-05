@@ -438,6 +438,29 @@ def test_results_line_up_with_layer(qtbot, viewer_widget, recording_model, model
     assert masks.data.shape == layer.data.shape
 
 
+@pytest.mark.parametrize('units', ['um', 'pixel'])
+@pytest.mark.parametrize('shape, rgb, axes', [
+    ((32, 32), False, {}),
+    ((3, 32, 32), False, {'channel_axis': 0}),
+    ((4, 32, 32), False, {'z_axis': 0, 'process_3D': False}),
+    ((4, 32, 32), False, {'z_axis': 0, 'process_3D': True}),
+    ((2, 4, 32, 32), False, {'z_axis': 1, 'channel_axis': 0}),
+    ((32, 32, 3), True, {}),
+    ((4, 32, 32, 3), True, {}),
+])
+def test_results_keep_layer_units(qtbot, viewer_widget, recording_model, units, shape, rgb, axes):
+    """the layers agree on units at each insertion, as napari checks them while drawing"""
+    viewer, widget = viewer_widget
+    recording_model('cpsam')
+    layer = viewer.add_image(np.zeros(shape), name='image', rgb=rgb, units=units)
+    extent_units = []
+    viewer.layers.events.inserted.connect(lambda _: extent_units.append(viewer.layers.extent.units))
+    _segment(qtbot, viewer, widget, 'cpsam', layer, **axes)
+
+    assert extent_units == [layer.units] * 4
+    assert all(result.units == layer.units for result in widget.cellpose_layers[-1])
+
+
 def test_recompute_masks_of_last_run(qtbot, viewer_widget, recording_model):
     """recomputing updates the last run's layers, whichever layer is selected since"""
     viewer, widget = viewer_widget
