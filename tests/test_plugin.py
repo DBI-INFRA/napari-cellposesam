@@ -314,6 +314,8 @@ def test_merged_channels(qtbot, viewer_widget):
     masks = viewer.layers[-1]
     assert masks.data.shape == stack.data.shape  # one mask per channel
     assert masks.data.max() == 37  # as for the same image loaded as RGB
+    flows, cellprob = widget.cellpose_layers[-1][:2]
+    assert not flows.data.flags.writeable and not cellprob.data.flags.writeable  # views, not copies
 
     old = masks.data
     widget.compute_masks_button.native.click()
@@ -390,6 +392,19 @@ def test_anisotropy_from_scale(qtbot, viewer_widget, recording_model,
     # the flows line up with the masks, whatever Z size the network ran at
     cellprob = viewer.layers['stack_cp_cellprob_000']
     np.testing.assert_allclose(cellprob.data.shape * cellprob.scale, masks.data.shape * masks.scale)
+
+
+def test_no_recompute_after_stitching(qtbot, viewer_widget, recording_model):
+    """masks are not recomputed from stitched flows, even after a run that allowed it"""
+    viewer, widget = viewer_widget
+    recording_model('cpsam')
+    layer = viewer.add_image(np.zeros((4, 32, 32)), name='stack')
+    _segment(qtbot, viewer, widget, 'cpsam', layer, process_3D=False)
+    assert widget.compute_masks_button.enabled
+
+    widget.cellpose_layers = []
+    _segment(qtbot, viewer, widget, 'cpsam', layer, stitch_threshold_3D='0.5')
+    assert not widget.compute_masks_button.enabled
 
 
 @pytest.mark.parametrize('model_type', ['cpsam', 'cyto3'])
@@ -559,6 +574,19 @@ def test_diameter_from_shape(viewer_widget):
     widget.compute_diameter_shape.changed(None)
 
     assert float(widget.diameter.value) == pytest.approx(27.0)
+
+
+def test_diameter_from_shape_without_squares(shown_errors, viewer_widget):
+    viewer, widget = viewer_widget
+    line = np.array([[0, 0], [30, 30]], dtype=float)
+    path = np.array([[0, 0], [0, 30], [30, 30]], dtype=float)
+    widget.shape_layer.value = viewer.add_shapes([line, path], shape_type=['line', 'path'])
+    diameter = widget.diameter.value
+
+    widget.compute_diameter_shape.changed(None)
+
+    assert widget.diameter.value == diameter
+    assert shown_errors == ['no square or circle shapes created']
 
 
 def test_cellpose3_fetched_on_first_use(qtbot, viewer_widget, cellpose3, tmp_path, monkeypatch, accept_prompts):
