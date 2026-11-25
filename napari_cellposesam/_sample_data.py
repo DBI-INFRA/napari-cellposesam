@@ -5,16 +5,18 @@ def extract_zip(cached_file, url, data_path):
     from cellpose import utils
 
     if not cached_file.exists():
-        utils.download_url_to_file(url, cached_file)        
-        with zipfile.ZipFile(cached_file,"r") as zip_ref:
-            zip_ref.extractall(data_path)
+        utils.download_url_to_file(url, cached_file)
+    with zipfile.ZipFile(cached_file,"r") as zip_ref:
+        zip_ref.extractall(data_path)
 
 def _get_data_dir():
     cp_dir = pathlib.Path.home().joinpath('.cellpose')
     cp_dir.mkdir(exist_ok=True)
     zip_path = cp_dir.joinpath('data.zip')
     data_dir = cp_dir.joinpath('data')
-    extract_zip(zip_path, 'https://osf.io/download/s52q3/', cp_dir)
+    # the data folder may be deleted, or its unzip cut short, while the zip stays
+    if not all((data_dir / f).exists() for f in ('2D/rgb_2D_tif.tif', '3D/rgb_3D.tif')):
+        extract_zip(zip_path, 'https://osf.io/download/s52q3/', cp_dir)
     return data_dir
 
 
