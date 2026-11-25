@@ -71,15 +71,21 @@ def _anisotropy(scale, z_axis, channel_axis=None):
     return None if np.isclose(anisotropy, 1) else anisotropy
 
 
-def _to_layer_axes(result, z_at, channel_axis=None, n_channels=0):
+def _to_layer_axes(result, z_at, channel_axis=None, n_channels=0, view=False):
     """a cellpose result, which has Z first if any and then Y and X, in its layer's axis order
 
     Z moves back to place `z_at` among the layer's spatial axes, and the result repeats
     `n_channels` times along the layer's `channel_axis`, so it lines up with every channel.
+    With `view` the repeats are a read-only view of one copy, for layers nobody edits.
     """
     result = np.moveaxis(result, 0, z_at)
     if n_channels:
-        result = np.repeat(np.expand_dims(result, axis=channel_axis), n_channels, axis=channel_axis)
+        result = np.expand_dims(result, axis=channel_axis)
+        if view:
+            shape = list(result.shape)
+            shape[channel_axis] = n_channels
+            return np.broadcast_to(result, shape)
+        result = np.repeat(result, n_channels, axis=channel_axis)
     return result
 
 
@@ -148,13 +154,7 @@ def widget_wrapper():
     # segmentation would pay that anyway, and it keeps the model list in step
     # with whatever cellpose is installed
     from cellpose.models import MODEL_DIR, MODEL_NAMES
-    try:
-        from torch import no_grad
-    except ImportError:
-        def no_grad():
-            def _deco(func):
-                return func
-            return _deco
+    from torch import no_grad
 
     @thread_worker
     @_one_at_a_time
@@ -377,7 +377,7 @@ def widget_wrapper():
     _z_axis_3d_choices = [('none', -1), ('0', 0), ('1', 1), ('2', 2)]
     _channel_axis_3d_choices = [('none (ZYX)', -1), ('0', 0), ('1', 1), ('2', 2)]
 
-    _shared_kwargs = dict(
+    _mgui_kwargs = dict(
         call_button='run segmentation',
         layout='vertical',
         diameter=dict(widget_type='LineEdit', label='diameter', value=30,
@@ -404,25 +404,15 @@ def widget_wrapper():
         process_3D=dict(widget_type='CheckBox', text='process stack as 3D', value=False,
                         tooltip='use default 3D processing where flows in X, Y, and Z are computed '
                                 'and dynamics run in 3D to create masks'),
+        z_axis=dict(widget_type='ComboBox', label='z axis', choices=[0, 1, 2, 3], value=0,
+                    visible=False, tooltip='which axis represents Z in the 4D image'),
+        channel_axis=dict(widget_type='ComboBox', label='channel axis', choices=_channel_axis_3d_choices,
+                          value=-1, visible=False,
+                          tooltip='which axis represents channels; "none" treats all axes as spatial (ZYX)'),
         stitch_threshold_3D=dict(widget_type='LineEdit', label='stitch threshold slices', value=0,
                                  tooltip='across time or Z, stitch together masks with IoU threshold of '
                                          '"stitch threshold" to create 3D segmentation'),
         clear_previous_segmentations=dict(widget_type='CheckBox', text='clear previous results', value=True),
-    )
-
-    # z_axis and channel_axis go immediately after process_3D
-    _mgui_kwargs = {}
-    for k, v in _shared_kwargs.items():
-        _mgui_kwargs[k] = v
-        if k == 'process_3D':
-            _mgui_kwargs['z_axis'] = dict(
-                widget_type='ComboBox', label='z axis', choices=[0, 1, 2, 3], value=0,
-                visible=False, tooltip='which axis represents Z in the 4D image')
-            _mgui_kwargs['channel_axis'] = dict(
-                widget_type='ComboBox', label='channel axis', choices=_channel_axis_3d_choices,
-                value=-1, visible=False,
-                tooltip='which axis represents channels; "none" treats all axes as spatial (ZYX)')
-    _mgui_kwargs.update(
         model_type=dict(widget_type='ComboBox', label='model type',
                         choices=[*MODEL_NAMES, *_backends.V3_MODELS, 'custom'],
                         value=MODEL_NAMES[0],
@@ -469,6 +459,12 @@ def widget_wrapper():
         if not hasattr(widget, 'cellpose_layers'):
             widget.cellpose_layers = []
 
+        try:
+            diameter, stitch_threshold_3D = float(diameter), float(stitch_threshold_3D)
+        except ValueError:
+            show_error('diameter and stitch threshold must be numbers')
+            return
+
         if model_type == 'custom' and not custom_model.resolve().is_file():
             show_error('model type is "custom" but no custom model file is selected')
             return
@@ -511,7 +507,9 @@ def widget_wrapper():
                 flows = flows_orig[0].astype(np.uint8)
                 cellprob = flows_orig[2]
             outlines = cp.utils.masks_to_outlines(masks) * masks
-            masks, outlines, flows, cellprob = map(to_layer, (masks, outlines, flows, cellprob))
+            # labels stay real copies, as users paint on them
+            masks, outlines = to_layer(masks), to_layer(outlines)
+            flows, cellprob = to_layer(flows, view=True), to_layer(cellprob, view=True)
             flow_zoom = np.divide(masks.shape, cellprob.shape)
 
             widget.flows_orig = flows_orig
@@ -553,13 +551,13 @@ def widget_wrapper():
                     layer.visible = False
                 viewer.layers[-1].visible = True
                 image_layer.visible = True
-                if not float(stitch_threshold_3D):
-                    widget.compute_masks_button.enabled = True
+                # masks are not recomputed from stitched flows
+                widget.compute_masks_button.enabled = not run_kwargs['stitch_threshold']
                 # follows the model that made the stored flows, not the selected one
                 widget.compute_masks_button.text = ('recompute last masks with new cellprob'
                                                     + (' + model match' if major == 3 else ''))
             except Exception as e:
-                logger.error(e)
+                show_error(str(e))
 
         try:
             _z_axis, _channel_axis = _data_axes(image_layer, z_axis, channel_axis)
@@ -583,20 +581,20 @@ def widget_wrapper():
         run_kwargs = dict(
             major=major,
             image=image,
-            diameter=float(diameter),
+            diameter=diameter,
             resample=resample_dynamics,
             cellprob_threshold=cellprob_threshold,
             flow_threshold=flow_threshold,
             min_size=min_size,
-            do_3D=(process_3D and float(stitch_threshold_3D) == 0 and is_stack),
-            stitch_threshold=float(stitch_threshold_3D) if is_stack else 0.0,
+            do_3D=(process_3D and stitch_threshold_3D == 0 and is_stack),
+            stitch_threshold=stitch_threshold_3D if is_stack else 0.0,
             model_type=model_type,
             custom_model=str(custom_model.resolve()),
             z_axis=_z_axis,
             channel_axis=_channel_axis,
         )
         if major == 3:
-            run_kwargs['channels'] = [max(0, main_channel), max(0, optional_nuclear_channel)]
+            run_kwargs['channels'] = [main_channel, optional_nuclear_channel]
         planes = is_stack and not run_kwargs['do_3D'] and not run_kwargs['stitch_threshold']
 
         if run_kwargs['do_3D'] and _z_axis is not None:
@@ -776,7 +774,7 @@ def widget_wrapper():
     @widget.compute_diameter_shape.changed.connect
     def _compute_diameter_shape(e: Any):
         if widget.shape_layer.value is None:
-            logger.error('no shape layer selected')
+            show_error('no shape layer selected')
             return
         diam = 0
         k = 0
@@ -784,18 +782,16 @@ def widget_wrapper():
             if len(d) == 4:
                 diam += np.ptp(d, axis=0)[-2:].sum()
                 k += 2
-        diam /= k
-        diam *= (27 / 30)
         if k > 0:
-            _report_diameter(diam)
+            _report_diameter(diam / k * (27 / 30))
         else:
-            logger.error('no square or circle shapes created')
+            show_error('no square or circle shapes created')
 
     @widget.compute_diameter_button.changed.connect
     def _compute_diameter(e: Any = None):
         model_type = widget.model_type.value
         if model_type == 'custom':
-            logger.error('cannot compute diameter for custom model')
+            show_error('cannot compute diameter for custom model')
             return
         if _backends.v3_missing():
             offer_cellpose3_fetch(model_type, then=_compute_diameter)
@@ -806,7 +802,7 @@ def widget_wrapper():
         except ValueError as e:
             show_error(str(e))
             return
-        channels = [max(0, widget.main_channel.value), max(0, widget.optional_nuclear_channel.value)]
+        channels = [widget.main_channel.value, widget.optional_nuclear_channel.value]
         image = layer.data
         if z is not None:
             # cellpose estimates the size of cells in 2D, so in the plane on show
